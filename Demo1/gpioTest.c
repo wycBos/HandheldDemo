@@ -857,7 +857,14 @@ int main(int argc, char *argv[])
 	gtk_widget_show(laser_off);
 
 	OpMode = Splash;
-
+	/* set the window position */
+	gint x, y; x = 1980; y = 50;
+	//gtk_window_get_position(GTK_WINDOW(window), &x, &y);
+	//gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER_ALWAYS);
+	gtk_window_set_gravity(GTK_WINDOW(window), GDK_GRAVITY_NORTH_WEST);
+	gtk_window_move(GTK_WINDOW(window), x, y);
+	
+	/* end the position set */
 	gtk_widget_show(window);
 
 	video_window_xwindow = gtk_widget_get_window(video_screen);
