@@ -862,11 +862,18 @@ int main(int argc, char *argv[])
 
 	OpMode = Splash;
 	/* set the window position */
+<<<<<<< HEAD
 	gint x, y; x = 0; y = 1130; // CM3
 	//gint x, y; x = 1920; y = 70; // Pi4
 	//gtk_window_get_position(GTK_WINDOW(window), &x, &y);
 	//gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER_ALWAYS);
 	gtk_window_set_gravity(GTK_WINDOW(window), GDK_GRAVITY_NORTH_EAST);
+=======
+	gint x, y; x = 1980; y = 50;
+	//gtk_window_get_position(GTK_WINDOW(window), &x, &y);
+	//gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER_ALWAYS);
+	gtk_window_set_gravity(GTK_WINDOW(window), GDK_GRAVITY_NORTH_WEST);
+>>>>>>> 04aa453696523bdd3842bbb34a53957bdbd305a6
 	gtk_window_move(GTK_WINDOW(window), x, y);
 	
 	/* end the position set */
