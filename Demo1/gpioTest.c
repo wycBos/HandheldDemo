@@ -487,7 +487,11 @@ void right_button_pressed()
 		gtk_label_set_text(GTK_LABEL(right_label), (const gchar *)"Exit");
 		gtk_label_set_text(GTK_LABEL(status_label), (const gchar *)"Idle");
 		OpMode = Idle;
-		wavePistop(mData.wid);
+		if(mData.wid >= 0)
+		{
+			wavePistop(mData.wid);
+			mData.wid = -1;
+		}
 	}
 	else if (strcmp(labelstring, "Save") == 0)
 	{
@@ -857,7 +861,15 @@ int main(int argc, char *argv[])
 	gtk_widget_show(laser_off);
 
 	OpMode = Splash;
-
+	/* set the window position */
+	gint x, y; x = 0; y = 1130; // CM3
+	//gint x, y; x = 1920; y = 70; // Pi4
+	//gtk_window_get_position(GTK_WINDOW(window), &x, &y);
+	//gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER_ALWAYS);
+	gtk_window_set_gravity(GTK_WINDOW(window), GDK_GRAVITY_NORTH_EAST);
+	gtk_window_move(GTK_WINDOW(window), x, y);
+	
+	/* end the position set */
 	gtk_widget_show(window);
 
 	video_window_xwindow = gtk_widget_get_window(video_screen);

@@ -51,7 +51,7 @@ float UART_main()
     if((fd = serialOpen("/dev/serial0",9600)) < 0)return 1;
 //    if((fd = serialOpen("/dev/ttyAMA0",115200)) < 0)return 1;
 //    serialFlush(fd);
-    printf("serial test start ...\n");
+    //printf("serial test start ...\n");
 
     serialPrintf(fd,contimeas);
     
@@ -68,16 +68,16 @@ float UART_main()
             for(int i=0;i<11;i++)
             {
                 data[i]=serialGetchar(fd);
-                printf("%x ",data[i]);
+                //printf("%x ",data[i]);
             }
-            printf("\n");
+            //printf("\n");
             unsigned char Check=0;
             for(int i=0;i<10;i++)
             {
                 Check=Check+data[i];
             }
             Check=~Check+1;
-            printf("%x \n" ,Check);
+            //printf("%x \n" ,Check);
             if(data[10]==Check)
             {
                 if(data[3]=='E'&&data[4]=='R'&&data[5]=='R')
@@ -107,7 +107,7 @@ float UART_main()
     //serialPrintf(fd,shutdown);     
     //delay(500);
     serialClose(fd);
-    printf("Received q for Quit \n"); 
+    //printf("Received q for Quit \n"); 
     return distance; //0;
 }
 
