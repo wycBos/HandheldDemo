@@ -490,7 +490,11 @@ void right_button_pressed()
 		gtk_label_set_text(GTK_LABEL(right_label), (const gchar *)"Exit");
 		gtk_label_set_text(GTK_LABEL(status_label), (const gchar *)"Idle");
 		OpMode = Idle;
-		wavePistop(mData.wid);
+		if(mData.wid >= 0)
+		{
+			wavePistop(mData.wid);
+			mData.wid = -1;
+		}
 	}
 	else if (strcmp(labelstring, "Save") == 0)
 	{
@@ -519,7 +523,7 @@ gboolean update_ppm(gpointer ppm)
 
 gboolean update_meas(gpointer mData)
 {
-	char buffer[20], buffer1[10];
+	char buffer[30], buffer1[10], buffer2[10];
 	measData lmData = *(measData*)mData;
 
 	g_mutex_lock(&mutex_1);
@@ -530,10 +534,10 @@ gboolean update_meas(gpointer mData)
 	sprintf(buffer, "%d", lmData.ppm);
 	strcat(buffer, " PPM\n\r");
 	sprintf(buffer1, "%2.2f", lmData.dist);
-	strcat(buffer1, " M");
-	sprintf(buffer, "%2.2f", lmData.ADVoltag);
-	strcat(buffer, " V\n\r");
-	strcat(buffer, buffer1);
+	strcat(buffer1, " M\n\r");
+	sprintf(buffer2, "%2.2f", lmData.ADVoltag);
+	strcat(buffer2, " V\n\r");
+	strcat(strcat(buffer, buffer1), buffer2);
 	gtk_label_set_text(GTK_LABEL(ppm_display_label), buffer);
 
 	// And read the GUI also here, before the mutex to be unlocked:
