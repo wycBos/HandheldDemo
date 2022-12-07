@@ -8,17 +8,14 @@
 #include <wiringSerial.h>
 #include <pigpio.h>
 #include "waveForm.h"
+#include "ADS1x15.h"
 
 #if 1
 static const unsigned int CFG_SAMRATE = 2;
 int gpios[]={5,6,13,12,};
 gpioPulse_t pulses[]=
 {
-<<<<<<< HEAD
-  /* 
-=======
    /*
->>>>>>> 04aa453696523bdd3842bbb34a53957bdbd305a6
    {0x1020, 0x2040, 125}, 
    {0x3020, 0x0040, 125}, 
    {0x2060, 0x1000, 125}, 
@@ -27,14 +24,8 @@ gpioPulse_t pulses[]=
    {0x3040, 0x0020, 125}, 
    {0x2000, 0x1060, 125}, 
    {0x0000, 0x3060, 125},
-<<<<<<< HEAD
-  */ 
-  
-   {0x1060, 0x2000, 5}, //1
-=======
    */
-   {0x1060, 0x0000, 5}, //1
->>>>>>> 04aa453696523bdd3842bbb34a53957bdbd305a6
+   {0x1060, 0x2000, 5}, //1
    {0x0000, 0x0020, 5}, 
    {0x0020, 0x0000, 5}, 
    {0x0000, 0x0020, 5}, 
@@ -144,11 +135,7 @@ gpioPulse_t pulses[]=
    {0x0020, 0x0000, 5}, 
    {0x0000, 0x0020, 5},  
 
-<<<<<<< HEAD
    {0x3020, 0x0040, 5}, //11
-=======
-   {0x1020, 0x0040, 5}, //11
->>>>>>> 04aa453696523bdd3842bbb34a53957bdbd305a6
    {0x0000, 0x0020, 5}, 
    {0x0020, 0x0000, 5}, 
    {0x0000, 0x0020, 5}, 
@@ -323,29 +310,44 @@ gpioPulse_t pulses[]=
 char contimeas[4]   ={0x80,0x06,0x03,0x77};
 
 //int main(int argc, char *argv[])
-int wavePiset()
+int wavePiset(void)
 {
    int g, fd, wid=-1;
+   ads1x15_p adc;
  
-//   if(wiringPiSetup() < 0)return 1;
-//    if((fd = serialOpen("/dev/serial0",9600)) < 0)return 1;
-   
-//   printf("serial test start ...\n");
-/*
-   for(int n = 0; n < 4; n++)
-   {
-      serialPrintf(fd,contimeas);
-      serialPrintf(fd,contimeas);
-      serialPrintf(fd,contimeas);
-      serialPrintf(fd,contimeas);
-      time_sleep(2);
-   }
-*/
-   //if (gpioCfgBufferSize(500) < 0) return 1; for CM3
-   //if (gpioCfgClock(CFG_SAMRATE, 0, 0) < 0) return 1; // for CM3
-   
    if (gpioInitialise() < 0) return 1;
 
+   adc = ADS1115_open(0, 1, 0x48, 0);
+
+   if (adc == NULL) return -2;
+
+   printf("ADS1115 start. \n");
+
+   ADS1X15_set_channel(adc, ADS1X15_A0);
+   ADS1X15_set_voltage_range(adc, 3.3);
+   ADS1X15_set_sample_rate(adc, 0); // set minimum sampling rate
+#if 0 // test ADS
+   float ADvolt = 0;
+   int end_time, seconds, micros;
+
+    
+   gpioTime(1, &seconds, &micros);
+   end_time = seconds + 1;
+
+    while (seconds < end_time)
+   {
+      // lguSleep(0.2);
+      gpioSleep(0, 1, 0);
+      gpioTime(1, &seconds, &micros);
+      printf("ADS1115 read. \n");
+
+      ADvolt = ADS1X15_read_voltage(adc);
+
+      printf("%.2f\n", ADvolt /*ADS1X15_read_voltage(adc)*/);
+   }
+#endif
+
+#if 1
    for (g=0; g<sizeof(gpios)/sizeof(gpios[0]); g++)
       gpioSetMode(gpios[g], PI_OUTPUT);
 
@@ -401,6 +403,10 @@ int wavePiset()
       time_sleep(2);
    }
 */
+#endif
+   //ADvolt = ADS1X15_read_voltage(adc);
+   //printf("-- %.2f\n", ADvolt /*ADS1X15_read_voltage(adc)*/);
+   ADS1X15_close(adc);
    return wid;
 }
 

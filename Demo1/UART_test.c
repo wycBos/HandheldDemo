@@ -88,9 +88,9 @@ float UART_main()
                 {
                 distance=0;
                 distance=(data[3]-0x30)*100+(data[4]-0x30)*10+(data[5]-0x30)*1+(data[7]-0x30)*0.1+(data[8]-0x30)*0.01+(data[9]-0x30)*0.001;
-                printf("Distance = ");
-                printf("%5.1f",distance);
-                printf(" m\n");
+                //printf("Distance = ");
+                //printf("%5.1f",distance);
+                //printf(" m\n");
                 }
             }
             else
