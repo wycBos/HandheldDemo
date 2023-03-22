@@ -61,10 +61,28 @@
 #endif
 
 // #include "gpioTest.h"
+/* GPIOs for Buttons */
+#define LEFT_BUTTON 22    // Input
+#define MIDDLE_BUTTON 27  // Input
+#define RIGHT_BUTTON 17   // Input
 
-#define LEFT_BUTTON 22
-#define MIDDLE_BUTTON 27
-#define RIGHT_BUTTON 17
+/* GPIOs for UART port */
+#define UART_SELEC 	1   // 0 - Dist measu; 1 - Temp ctrl
+// distance measurement
+
+// TEMP controller
+#define TEMP_ENAB   23  // 0 - Enable; 1 - Diseable
+#define TEMP_STAT   24  // Input
+
+/* GPIOs for ADC/DAC */
+#define ADC_SELEC   8   // 0 - Enable; 1 - Disable
+#define DAC_SELEC   7   // 0 - Dist measu; 1 - Temp ctrl
+// ADC Control
+#define ADC_CLK_EN  21  // 0 - Disable; 1 - Enable 
+#define ADC_DRDY    16  // Input, 0 - Data Ready; 1 - Disable
+#define ADC_REST    20  // 0 - Reset; 1 - No Effect 
+// DAC Control
+#define DAC_LDAC    19  // 0 - Disable; 1 - Enable 
 
 GtkWidget *window;
 GtkWidget *fixed1;
@@ -333,7 +351,7 @@ void left_button_pressed(int gpio, int level, uint32_t tick)
 {
 	// printf("left-isr %d gpio, %d level, %u\n", gpio, level, tick);
 	delay(500);
-	if (level != 1)
+	if (level != 0)
 		return;
 
 	labelstring = gtk_label_get_text(GTK_LABEL(left_label));
@@ -386,6 +404,10 @@ void left_button_pressed(int gpio, int level, uint32_t tick)
 		gtk_label_set_text(GTK_LABEL(middle_label), (const gchar *)"");
 		gtk_label_set_text(GTK_LABEL(right_label), (const gchar *)"Quit");
 		gtk_label_set_text(GTK_LABEL(status_label), (const gchar *)"Survey PPM");
+		
+		/* reset SER_SEL for distance measurement */
+
+
 		OpMode = PPM;
 
 		// delay(100);
@@ -405,7 +427,7 @@ void middle_button_pressed(int gpio, int level, uint32_t tick)
 {
 	// printf("middle-isr %d gpio, %d level, %u\n", gpio, level, tick);
 	delay(500);
-	if (level != 1)
+	if (level != 0)
 		return;
 
 	labelstring = gtk_label_get_text(GTK_LABEL(middle_label));
@@ -475,7 +497,7 @@ void right_button_pressed(int gpio, int level, uint32_t tick)
 {
 	//printf("right-isr %d gpio, %d level, %u\n", gpio, level, tick);
 	delay(500);
-	if (level != 1)
+	if (level != 0)
 		return;
 	labelstring = gtk_label_get_text(GTK_LABEL(right_label));
 	if (strcmp(labelstring, "Exit") == 0)
@@ -790,6 +812,8 @@ int main(int argc, char *argv[])
 	// wiringPiISR(MIDDLE_BUTTON, INT_EDGE_RISING, middle_button_pressed);
 	// wiringPiISR(RIGHT_BUTTON, INT_EDGE_RISING, right_button_pressed);
 
+	/* config GPIOs */
+	// GPIOs for button
 	gpioSetMode(LEFT_BUTTON, PI_INPUT);
 	gpioSetMode(MIDDLE_BUTTON, PI_INPUT);
 	gpioSetMode(RIGHT_BUTTON, PI_INPUT);
@@ -802,6 +826,32 @@ int main(int argc, char *argv[])
 	int middleset = gpioSetISRFunc(MIDDLE_BUTTON, FALLING_EDGE, 60000, middle_button_pressed);
 	int rightset = gpioSetISRFunc(RIGHT_BUTTON, FALLING_EDGE, 60000, right_button_pressed);
 	printf("%d, %d, %d\n", leftset, middleset, rightset);
+
+	// GPIOs for UARTs
+	gpioSetMode(UART_SELEC, PI_OUTPUT);
+	gpioSetMode(TEMP_ENAB, PI_OUTPUT);
+	gpioSetMode(TEMP_STAT, PI_INPUT);
+
+	gpioWrite(UART_SELEC, PI_HIGH);
+	gpioWrite(TEMP_ENAB, PI_HIGH);
+
+	// GPIOs for ADC
+	gpioSetMode(ADC_SELEC, PI_OUTPUT);
+	gpioSetMode(ADC_CLK_EN, PI_OUTPUT);
+	gpioSetMode(ADC_REST, PI_OUTPUT);
+	gpioSetMode(ADC_DRDY, PI_INPUT);
+
+	gpioWrite(ADC_SELEC, PI_HIGH);
+	gpioWrite(ADC_CLK_EN, PI_HIGH);
+	gpioWrite(ADC_REST, PI_HIGH);
+
+	// GPIOs for DAC
+	gpioSetMode(DAC_SELEC, PI_OUTPUT);
+	gpioSetMode(DAC_LDAC, PI_OUTPUT);
+
+	gpioWrite(DAC_SELEC, PI_HIGH);
+	gpioWrite(DAC_LDAC, PI_HIGH);
+
 
 	gtk_init(&argc, &argv); // init Gtk
 	gst_init(&argc, &argv); // init Gstreamer

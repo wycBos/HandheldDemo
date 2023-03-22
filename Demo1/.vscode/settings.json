@@ -13,7 +13,7 @@
         "system_error": "c",
         "typeinfo": "c",
         "pigpio.h": "c",
-        "time.h": "c"
-        //"pycapsule.h": "c"
+        "time.h": "c",
+        "limits": "c"
     }
 }
