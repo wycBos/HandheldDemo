@@ -1,0 +1,44 @@
+[2022-09-16 16:22:39.430] [main] [info] update#setState idle
+[2022-09-16 16:22:45.623] [main] [info] Starting extension host with pid 2625 (fork() took 38 ms).
+[2022-09-16 16:22:46.083] [main] [info] Waiting for extension host with pid 2625 to exit.
+[2022-09-16 16:22:46.218] [main] [error] [uncaught exception in main]: Error: Assertion Failed: argument is undefined or null
+[2022-09-16 16:22:46.219] [main] [error] Error: Assertion Failed: argument is undefined or null
+    at g (/usr/share/code/resources/app/out/vs/code/electron-main/main.js:16:41863)
+    at f.connect (/usr/share/code/resources/app/out/vs/code/electron-main/main.js:74:107144)
+    at async /usr/share/code/resources/app/out/vs/code/electron-main/main.js:77:65929
+[2022-09-16 16:22:46.221] [main] [error] [uncaught exception in main]: Error: Assertion Failed: argument is undefined or null
+[2022-09-16 16:22:46.221] [main] [error] Error: Assertion Failed: argument is undefined or null
+    at g (/usr/share/code/resources/app/out/vs/code/electron-main/main.js:16:41863)
+    at f.connect (/usr/share/code/resources/app/out/vs/code/electron-main/main.js:74:107144)
+    at async /usr/share/code/resources/app/out/vs/code/electron-main/main.js:77:65929
+[2022-09-16 16:22:46.225] [main] [error] [uncaught exception in main]: Error: Assertion Failed: argument is undefined or null
+[2022-09-16 16:22:46.226] [main] [error] Error: Assertion Failed: argument is undefined or null
+    at g (/usr/share/code/resources/app/out/vs/code/electron-main/main.js:16:41863)
+    at f.connect (/usr/share/code/resources/app/out/vs/code/electron-main/main.js:74:107144)
+    at async /usr/share/code/resources/app/out/vs/code/electron-main/main.js:77:65929
+[2022-09-16 16:22:46.227] [main] [error] [uncaught exception in main]: Error: Assertion Failed: argument is undefined or null
+[2022-09-16 16:22:46.229] [main] [error] Error: Assertion Failed: argument is undefined or null
+    at g (/usr/share/code/resources/app/out/vs/code/electron-main/main.js:16:41863)
+    at f.connect (/usr/share/code/resources/app/out/vs/code/electron-main/main.js:74:107144)
+    at async /usr/share/code/resources/app/out/vs/code/electron-main/main.js:77:65929
+[2022-09-16 16:22:46.249] [main] [error] [uncaught exception in main]: Error: Assertion Failed: argument is undefined or null
+[2022-09-16 16:22:46.249] [main] [error] Error: Assertion Failed: argument is undefined or null
+    at g (/usr/share/code/resources/app/out/vs/code/electron-main/main.js:16:41863)
+    at f.connect (/usr/share/code/resources/app/out/vs/code/electron-main/main.js:74:107144)
+    at async /usr/share/code/resources/app/out/vs/code/electron-main/main.js:77:65929
+[2022-09-16 16:22:46.250] [main] [error] [uncaught exception in main]: Error: Assertion Failed: argument is undefined or null
+[2022-09-16 16:22:46.251] [main] [error] Error: Assertion Failed: argument is undefined or null
+    at g (/usr/share/code/resources/app/out/vs/code/electron-main/main.js:16:41863)
+    at f.connect (/usr/share/code/resources/app/out/vs/code/electron-main/main.js:74:107144)
+    at async /usr/share/code/resources/app/out/vs/code/electron-main/main.js:77:65929
+[2022-09-16 16:22:46.253] [main] [error] [uncaught exception in main]: Error: Assertion Failed: argument is undefined or null
+[2022-09-16 16:22:46.254] [main] [error] Error: Assertion Failed: argument is undefined or null
+    at g (/usr/share/code/resources/app/out/vs/code/electron-main/main.js:16:41863)
+    at f.connect (/usr/share/code/resources/app/out/vs/code/electron-main/main.js:74:107144)
+    at async /usr/share/code/resources/app/out/vs/code/electron-main/main.js:77:65929
+[2022-09-16 16:22:46.255] [main] [error] [uncaught exception in main]: Error: Assertion Failed: argument is undefined or null
+[2022-09-16 16:22:46.255] [main] [error] Error: Assertion Failed: argument is undefined or null
+    at g (/usr/share/code/resources/app/out/vs/code/electron-main/main.js:16:41863)
+    at f.connect (/usr/share/code/resources/app/out/vs/code/electron-main/main.js:74:107144)
+    at async /usr/share/code/resources/app/out/vs/code/electron-main/main.js:77:65929
+[2022-09-16 16:22:47.011] [main] [info] Extension host with pid 2625 exited with code: 0, signal: null.

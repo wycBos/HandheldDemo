@@ -32,8 +32,8 @@ void serialread(int fd, int numbytes)
             }
 }
 
-//int main()
-float UART_main()
+int main()
+//float UART_main()
 {
     int fd;
     int c;
@@ -52,27 +52,29 @@ float UART_main()
 //    if((fd = serialOpen("/dev/ttyAMA0",115200)) < 0)return 1;
 //    serialFlush(fd);
     printf("serial test start ...\n");
-
+    
+    
+    
+    
+    
     serialPrintf(fd,contimeas);
     
   
-    int counter = 0, counterErr = 0; GoGo = TRUE;
+    int counter = 0;
     while(GoGo)
     {  
         
-        if (counter > 2 || counterErr > 50) GoGo = FALSE;
-        //delay(50);
-        if ((numbytes=serialDataAvail(fd)) > 0)
+        if (counter > 5) GoGo = FALSE;
+        if (serialDataAvail(fd) > 0)
         {
             delay(50);
             counter++;
-            printf("received %d \n",numbytes);
             for(int i=0;i<11;i++)
             {
                 data[i]=serialGetchar(fd);
-                //printf("%x ",data[i]);
+                printf("%x ",data[i]);
             }
-            //printf("\n");
+            printf("\n");
             unsigned char Check=0;
             for(int i=0;i<10;i++)
             {
@@ -88,8 +90,6 @@ float UART_main()
                 }
                 else
                 {
-                printf("data: 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x.\n"
-                    , data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9], data[10]);
                 distance=0;
                 distance=(data[3]-0x30)*100+(data[4]-0x30)*10+(data[5]-0x30)*1+(data[7]-0x30)*0.1+(data[8]-0x30)*0.01+(data[9]-0x30)*0.001;
                 printf("Distance = ");
@@ -99,19 +99,17 @@ float UART_main()
             }
             else
             {
-                printf("Invalid Data! %d\n", numbytes);
+                printf("Invalid Data!\n");
             }
-        }else{
-            counterErr++;
         }
         delay(20);
     }
-    //serialPrintf(fd,laseroff);
-    //delay(500);
-    //serialPrintf(fd,shutdown);     
-    //delay(500);
-    serialClose(fd);
-    //printf("Received q for Quit \n"); 
+//    serialPrintf(fd,laseroff);
+//    delay(100);
+//   serialPrintf(fd,shutdown);     
+//    delay(500);
+//    serialClose(fd);
+    printf("Received q for Quit \n"); 
     return distance; //0;
 }
 
