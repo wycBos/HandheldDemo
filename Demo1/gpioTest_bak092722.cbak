@@ -25,10 +25,9 @@
 #+
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 
-// #include "gpioTest.h"
+//#include "gpioTest.h"
 #include "UART_test.h"
 #include "waveForm.h"
-#include "ADS1x15.h"
 #include <stdlib.h>
 #include <sys/types.h>
 #include <signal.h>
@@ -47,10 +46,10 @@
 #include <pigpio.h>
 #include <pthread.h>
 #include <signal.h>
-// #include <raspicam/raspicam.h>
+//#include <raspicam/raspicam.h>
 #include <gst/video/videooverlay.h>
 #include <gst/video/video.h>
-// #include <gst/interfaces/xoverlay.h>
+//#include <gst/interfaces/xoverlay.h>
 #include <Python.h>
 #if defined(GDK_WINDOWING_X11)
 #include <gdk/gdkx.h>
@@ -60,29 +59,11 @@
 #include <gdk/gdkquartz.h>
 #endif
 
-#include "piSerial.h"
-/* GPIOs for Buttons */
-#define LEFT_BUTTON 22    // Input
-#define MIDDLE_BUTTON 27  // Input
-#define RIGHT_BUTTON 17   // Input
+//#include "gpioTest.h"
 
-/* GPIOs for UART port */
-#define UART_SELEC 	1   // 0 - Dist measu; 1 - Temp ctrl
-// distance measurement
-
-// TEMP controller
-#define TEMP_ENAB   23  // 0 - Enable; 1 - Diseable
-#define TEMP_STAT   24  // Input
-
-/* GPIOs for ADC/DAC */
-#define ADC_SELEC   8   // 0 - Enable; 1 - Disable
-#define DAC_SELEC   7   // 0 - Dist measu; 1 - Temp ctrl
-// ADC Control
-#define ADC_CLK_EN  21  // 0 - Disable; 1 - Enable 
-#define ADC_DRDY    16  // Input, 0 - Data Ready; 1 - Disable
-#define ADC_REST    20  // 0 - Reset; 1 - No Effect 
-// DAC Control
-#define DAC_LDAC    19  // 0 - Disable; 1 - Enable 
+#define LEFT_BUTTON 22
+#define MIDDLE_BUTTON 27
+#define RIGHT_BUTTON 17
 
 GtkWidget *window;
 GtkWidget *fixed1;
@@ -144,27 +125,22 @@ const gchar *labelstring, *setup_buf;
 time_t current_time;
 struct tm *time_info;
 int current_min = -1;
-int current_sec = -1;
 int ppm = 0;
 int cam = 0;
 long int timedate;
 int counter = 0;
 float dist = 0;
 
-typedef struct measData_t
-{
-	int ppm; // count
-	float gas_ppm; // TODO - present ratio right now. it'll be changed later.
-	float ADVoltag;
+typedef struct measData_t{
+	int ppm;
 	float dist;
 	int wid;
-} measData;
+}measData;
 
 measData mData;
-ads1x15_p adcMain;
 
-GMutex mutex_1, mutex_2, mutex_3, mutex_data;
-pthread_mutex_t pmtx_mData;
+GMutex mutex_1, mutex_2, mutex_3;
+
 /**
 	 * C++ version 0.4 char* style "itoa":
 	 * Written by Lukás Chmela
@@ -213,11 +189,10 @@ void cleanup(int signo)
 	pullUpDnControl(LEFT_BUTTON, PUD_DOWN);
 	pullUpDnControl(MIDDLE_BUTTON, PUD_DOWN);
 	pullUpDnControl(RIGHT_BUTTON, PUD_DOWN);
-	/* add tunr laser/TempCtrl off */
-
+ 
 	exit(0);
 }
-/* TODO - move to python routints file */
+
 char *call_Python_QR(int argc, char *argv1, char *argv2)
 {
 	PyObject *pName, *pModule, *pDict, *pFunc, *pValue, *pmyresult;
@@ -279,7 +254,7 @@ char *call_Python_QR(int argc, char *argv1, char *argv2)
 
 	return l_UserID;
 }
-/* TODO - move to python routints file */
+
 int call_Python_Stitch(int argc, char *argv1, char *argv2, char *argv3, char *argv4, char *argv5, char *argv6)
 {
 	PyObject *pName, *pModule, *pDict, *pFunc, *pValue, *pmyresult, *args, *kwargs;
@@ -300,6 +275,7 @@ int call_Python_Stitch(int argc, char *argv1, char *argv2, char *argv3, char *ar
 	// Build the name object
 	pName = PyUnicode_DecodeFSDefault(argv1);
 
+
 	// Load the module object
 	pModule = PyImport_Import(pName);
 
@@ -309,10 +285,10 @@ int call_Python_Stitch(int argc, char *argv1, char *argv2, char *argv3, char *ar
 	// pFunc is also a borrowed reference
 	pFunc = PyDict_GetItemString(pDict, argv2);
 
-	// args = PyTuple_Pack(2,PyUnicode_DecodeFSDefault(argv3), PyUnicode_DecodeFSDefault(argv4));
-	// kwargs = PyTuple_Pack(2,PyUnicode_DecodeFSDefault(argv5), PyUnicode_DecodeFSDefault(argv6));
-	args = Py_BuildValue("ssss", argv5, argv3, argv6, argv4);
-	// kwargs = Py_BuildValue("ss", argv5, argv6);
+	//args = PyTuple_Pack(2,PyUnicode_DecodeFSDefault(argv3), PyUnicode_DecodeFSDefault(argv4));
+	//kwargs = PyTuple_Pack(2,PyUnicode_DecodeFSDefault(argv5), PyUnicode_DecodeFSDefault(argv6));
+	args = Py_BuildValue("ssss", argv5,argv3, argv6, argv4);
+	//kwargs = Py_BuildValue("ss", argv5, argv6);
 	if (PyCallable_Check(pFunc))
 	{
 		pmyresult = PyObject_CallObject(pFunc, NULL);
@@ -323,6 +299,7 @@ int call_Python_Stitch(int argc, char *argv1, char *argv2, char *argv3, char *ar
 		PyErr_Print();
 		i = 1;
 	}
+	
 
 	// Clean up
 	Py_DECREF(pModule);
@@ -349,13 +326,9 @@ void setup_filestructure()
 	gtk_text_buffer_set_text(userID, text, strlen(text));
 	gtk_text_view_set_buffer(setup_value_7, userID);
 }
-/* TODO - it might be moved to Gtk_proc.c file */
-void left_button_pressed(int gpio, int level, uint32_t tick)
+
+void left_button_pressed()
 {
-	// printf("left-isr %d gpio, %d level, %u\n", gpio, level, tick);
-	delay(500);
-	if (level != 0)
-		return;
 
 	labelstring = gtk_label_get_text(GTK_LABEL(left_label));
 	if (strcmp(labelstring, "Setup") == 0)
@@ -386,35 +359,20 @@ void left_button_pressed(int gpio, int level, uint32_t tick)
 		labelstring = gtk_label_get_text(GTK_LABEL(status_label));
 		if (strcmp(labelstring, "Confirm Exit") == 0)
 		{
-			// if(mData.wid >= 0)
-			//{
-			//	wavePistop(mData.wid);
-			// }
-
 			gtk_label_set_text(GTK_LABEL(status_label), (const gchar *)"Bye");
 			OpMode = Shutdown;
 		}
 	}
 	else if (strcmp(labelstring, "PPM/DIST") == 0)
 	{
-		// if(mData.wid < 0)
-		//{
-		// mData.wid = wavePiset();
-		//}
 		gtk_widget_show(ppm_display_label);
 		gtk_widget_show(eventbox_ppm);
 		gtk_label_set_text(GTK_LABEL(left_label), (const gchar *)"");
 		gtk_label_set_text(GTK_LABEL(middle_label), (const gchar *)"");
 		gtk_label_set_text(GTK_LABEL(right_label), (const gchar *)"Quit");
 		gtk_label_set_text(GTK_LABEL(status_label), (const gchar *)"Survey PPM");
-		
-		/* reset SER_SEL for distance measurement */
-
-
+		mData.wid = wavePiset();
 		OpMode = PPM;
-
-		// delay(100);
-		// OpMode = PPM;
 	}
 	else if (strcmp(labelstring, "IR Cam") == 0)
 	{
@@ -425,24 +383,21 @@ void left_button_pressed(int gpio, int level, uint32_t tick)
 		OpMode = IRCam;
 	}
 }
-/* TODO - it might be moved to Gtk_proc.c file */
-void middle_button_pressed(int gpio, int level, uint32_t tick)
-{
-	// printf("middle-isr %d gpio, %d level, %u\n", gpio, level, tick);
-	delay(500);
-	if (level != 0)
-		return;
 
+void middle_button_pressed()
+{
 	labelstring = gtk_label_get_text(GTK_LABEL(middle_label));
 	if (strcmp(labelstring, "Start") == 0)
 	{
 		gtk_label_set_text(GTK_LABEL(status_label), (const gchar *)"Startup");
 		// call startup sequence here
+		{
+			delay(1000);
+		}
 		gtk_label_set_text(GTK_LABEL(status_label), (const gchar *)"Choose Mode");
 		gtk_label_set_text(GTK_LABEL(left_label), (const gchar *)"PPM/DIST");
 		gtk_label_set_text(GTK_LABEL(middle_label), (const gchar *)"Live Cam");
 		gtk_label_set_text(GTK_LABEL(right_label), (const gchar *)"Bar Graph");
-		// printf("middle-start\n");
 	}
 	else if (strcmp(labelstring, "Live Cam") == 0)
 	{
@@ -454,7 +409,6 @@ void middle_button_pressed(int gpio, int level, uint32_t tick)
 		gtk_label_set_text(GTK_LABEL(right_label), (const gchar *)"Quit");
 		gtk_label_set_text(GTK_LABEL(status_label), (const gchar *)"Survey Live");
 		OpMode = LiveCam;
-		// printf("middle-Live Cam\n");
 	}
 	else if (strcmp(labelstring, "Snapshot") == 0)
 	{
@@ -495,13 +449,10 @@ void middle_button_pressed(int gpio, int level, uint32_t tick)
 		gtk_text_view_set_cursor_visible(setup_value_1, True);
 	}
 }
-/* TODO - it might be moved to Gtk_proc.c file */
-void right_button_pressed(int gpio, int level, uint32_t tick)
+
+void right_button_pressed()
 {
-	//printf("right-isr %d gpio, %d level, %u\n", gpio, level, tick);
-	delay(500);
-	if (level != 0)
-		return;
+
 	labelstring = gtk_label_get_text(GTK_LABEL(right_label));
 	if (strcmp(labelstring, "Exit") == 0)
 	{
@@ -521,7 +472,6 @@ void right_button_pressed(int gpio, int level, uint32_t tick)
 			gtk_label_set_text(GTK_LABEL(status_label), (const gchar *)"Idle");
 			OpMode = Idle;
 		}
-		// printf("right-No\n");
 	}
 	else if (strcmp(labelstring, "IR Cam") == 0)
 	{
@@ -538,68 +488,58 @@ void right_button_pressed(int gpio, int level, uint32_t tick)
 		gtk_label_set_text(GTK_LABEL(right_label), (const gchar *)"Exit");
 		gtk_label_set_text(GTK_LABEL(status_label), (const gchar *)"Idle");
 		OpMode = Idle;
-		// printf("right-Quit\n");
-		// if(mData.wid >= 0)
-		//{
-		//	wavePistop(mData.wid);
-		//	mData.wid = -1;
-		// }
+		wavePistop(mData.wid);
 	}
 	else if (strcmp(labelstring, "Save") == 0)
 	{
 	}
 }
-/* TODO - it might be moved to measurer_utility.c file */
-gboolean update_ppm(gpointer ppm) //TODO - remove it later
+
+gboolean update_ppm(gpointer ppm)
 {
 	char buffer[10];
 
-	//g_mutex_lock(&mutex_1);
-	pthread_mutex_lock(&pmtx_mData);
-
+	g_mutex_lock(&mutex_1);
 	// update the GUI here:
 	// gtk_button_set_label(button,"label");
 	itoa((int)ppm, buffer, 10);
-	// itoa((float)ppm, buffer, 10);
+	//itoa((float)ppm, buffer, 10);
 	strcat(buffer, " PPM");
 	strcat(buffer, "\n\r 8.0 M");
 	gtk_label_set_text(GTK_LABEL(ppm_display_label), buffer);
 
 	// And read the GUI also here, before the mutex to be unlocked:
 	// gchar * text = gtk_entry_get_text(GTK_ENTRY(entry));
-	//g_mutex_unlock(&mutex_1);
-	pthread_mutex_unlock(&pmtx_mData);
+	g_mutex_unlock(&mutex_1);
+
 	return FALSE;
 }
-/* TODO - it might be moved to measurer_utility.c file */
+
 gboolean update_meas(gpointer mData)
 {
-	char buffer[30], buffer1[10], buffer2[10];
-	measData lmData = *(measData *)mData;
+	char buffer[20], buffer1[10];
+	measData lmData = *(measData*)mData;
 
-	//g_mutex_lock(&mutex_1);
-	pthread_mutex_lock(&pmtx_mData);
-
+	g_mutex_lock(&mutex_1);
 	// update the GUI here:
 	// gtk_button_set_label(button,"label");
-	// itoa((int)ppm, buffer, 10);
-	// itoa(lmData.ppm, buffer, 10);
+	//itoa((int)ppm, buffer, 10);
+	//itoa(lmData.ppm, buffer, 10);
+	//sprintf(buffer, "%d", lmData.ppm);
 	sprintf(buffer, "%d", lmData.ppm);
 	strcat(buffer, " PPM\n\r");
 	sprintf(buffer1, "%2.2f", lmData.dist);
-	strcat(buffer1, " M\n\r");
-	sprintf(buffer2, "%2.2f", lmData.ADVoltag);
-	strcat(buffer2, " V\n\r");
-	strcat(strcat(buffer, buffer1), buffer2);
+	strcat(buffer1, " M");
+	strcat(buffer, buffer1);
 	gtk_label_set_text(GTK_LABEL(ppm_display_label), buffer);
 
 	// And read the GUI also here, before the mutex to be unlocked:
 	// gchar * text = gtk_entry_get_text(GTK_ENTRY(entry));
-	//g_mutex_unlock(&mutex_1);
-	pthread_mutex_unlock(&pmtx_mData);
+	g_mutex_unlock(&mutex_1);
 
 	return FALSE;
 }
+
 
 gboolean update_time(gpointer time_info)
 {
@@ -609,7 +549,7 @@ gboolean update_time(gpointer time_info)
 	// update the GUI here:
 	// gtk_button_set_label(button,"label");
 
-	// char *cp = calloc(1, sizeof(dateString));//test
+	//char *cp = calloc(1, sizeof(dateString));//test
 
 	strftime(dateString, sizeof(dateString), "%D", time_info);
 	gtk_label_set_text(GTK_LABEL(date_label), dateString);
@@ -622,7 +562,7 @@ gboolean update_time(gpointer time_info)
 
 	return FALSE;
 }
-/* TODO - it might be moved to Gtk_proc.c file */
+
 gboolean live_stream(gpointer pipeline)
 {
 	char dateString[9];
@@ -659,10 +599,10 @@ gboolean live_stream(gpointer pipeline)
 
 	return FALSE;
 }
-/* TODO - It is modified to be the dev_mainloop() */
+
 void *start_loop_thread(void *arg)
 {
-	char buffer[5], img_filename[32];
+	char buffer[5], img_filename[32]; 
 	while (1)
 	{
 		// update time once a minute
@@ -723,11 +663,10 @@ void *start_loop_thread(void *arg)
 			break;
 
 		case PPM:
-			//mData.ppm += 1;
-			//mData.dist = UART_main();
-			//mData.ADVoltag = ADS1115_main();
-			delay(500);
-			// gdk_threads_add_idle(update_ppm, (measData *)ppm);
+			mData.ppm += 1;
+			mData.dist = UART_main();
+			delay(1000);
+			//gdk_threads_add_idle(update_ppm, (measData *)ppm);
 			gdk_threads_add_idle(update_meas, (gpointer)&mData);
 			break;
 		case LiveCam:
@@ -738,9 +677,9 @@ void *start_loop_thread(void *arg)
 			delay(100);
 			strcpy(img_filename, "./Images/Img_");
 			{
-				// char imgPath[64];
-				// realpath(img_filename, imgPath);
-				// printf("%s\n", imgPath);
+				//char imgPath[64];
+				//realpath(img_filename, imgPath);
+				//printf("%s\n", imgPath);
 			}
 			if (counter < 10)
 			{
@@ -780,7 +719,7 @@ void *start_loop_thread(void *arg)
 			{
 				int cresult;
 				counter = 0;
-				// cresult = call_Python_Stitch(6, "Image_Stitching", "main", "Images", "output.jpeg","--images","--output");
+				//cresult = call_Python_Stitch(6, "Image_Stitching", "main", "Images", "output.jpeg","--images","--output");
 				printf("The stitching is removed for test!\n");
 				OpMode = Idle;
 			}
@@ -794,171 +733,6 @@ void *start_loop_thread(void *arg)
 	}
 }
 
-/***************************************************
- * the dev_gasMeasure() routine is the start routine of the measer thread.
- * - arguments
- *    4 channel ADC input value (for debug)
- *    measuring value.
- *    ADC state
- * 
- * **************************************************/ 
-void *dev_gasMeasure_thread(void *arg)
-{
-	char buffer[5], img_filename[32];
-	measData *plmData = (measData *)arg;
-
-	while (1)
-	{
-		// update time once a minute
-		time(&current_time);
-		time_info = localtime(&current_time);
-		if (time_info->tm_min != current_min)//update time TODO - change to update gas Concentration.
-		{
-			//gdk_threads_add_idle(update_time, time_info);
-			delay(1);
-			current_min = time_info->tm_min;
-			
-			// update the measure data
-			//g_mutex_lock(&mutex_1);
-			//plmData->ppm += 1;
-			//plmData->dist = UART_main();
-			//plmData->ADVoltag = ADS1115_main();
-			//g_mutex_lock(&mutex_1);
-		}
-		if (time_info->tm_sec != current_sec)//update time TODO - change to update gas Concentration.
-		{
-			//gdk_threads_add_idle(update_time, time_info);
-			delay(1000);
-			//current_min = time_info->tm_sec;
-			
-			// update the measure data
-			//g_mutex_lock(&mutex_1);
-			pthread_mutex_lock(&pmtx_mData);
-
-			plmData->ppm += 1;
-			
-			float dis;
-			//dis = UART_main();
-			dis = UART_distMain(LASERDST); //test pigpio-uart operions
-			if(dis >= 0.0)
-				plmData->dist = dis ;//UART_main();
-
-			plmData->ADVoltag = ADS1115_main();
-			//g_mutex_lock(&mutex_1);
-			pthread_mutex_unlock(&pmtx_mData);
-			printf("gasMea dist - %f\n", dis);
-
-		}
-		switch (OpMode)
-		{
-			//{Splash = 0, Setup, Idle, BarGraph, PPM, LiveCam, IRCam, Shutdown}
-		case Splash: // map to idle_start.
-			/**********************************************************
-			 *  The measurement state was set to measEnter in very beginning.
-			 *  1. check if measurement state is measEnter or measIdle;
-			 *  2.1 if it's not either, report measurement error1;
-			 *  2.2 if it's measIdle, goto 5;
-			 *  2.3 if it;s measEnter, turn off Tec/Laser, and set DEC_CH0 to 0.00; 
-			 *  3.1. if need, do daily callibration;
-			 *  3.2. turn on the Tec, set the Tec & DEC_CH0_CH1 based on record file data;
-			 *  4. set the measurement state to measIdle;
-			 *  5. break;
-			 * 
-			 * *******************************************************
-			 * 
-			 */
-			
-			/* daily calibration if need, and read the parameters from record file to preparing the gas measurement */
-			printf("\n StateID (Splash-%d), do daily calibration if need. turn on Tec only.\n", OpMode);
-			printf(" read gas measurement parameters. \n");
-			delay(1000);
-			break;
-		case Setup: // map to set_device. TODO - it is a new routine.
-			/**********************************************************
-			 *  The measurement state was set to measIdle or measSet in previous running.
-			 *  1. turn off Tec/Laser, and set DEC_CH0 to 0.00; 
-			 *  2  set the measurement state to measReset;
-			 *  3. set Tec/Laser/DEC_CH0/DEC_CH1 by user;
-			 *  4. if need, save the new settings into record file;
-			 *  5. set the measurement state to measIdle
-			 * 
-			 * *******************************************************
-			 * 
-			 */
-			/* turn off Tec/Laser*/
-			printf("\n StateID (Setup-%d), setup gas measurement parameters. turn off Tec/Laser\n", OpMode);
-			delay(10);
-			break;
-
-		case Idle: // map to run_idle.
-			/**********************************************************
-			 *  1. check if the gas measurement state is measIdle or measSet; 
-			 *  2.1. if not, report the measurement state error;
-			 *  2.2. if it's measSet, goto 5;
-			 *  2.3. if it's measIdle, start the waveforms;
-			 *  3. start laser distance measurement per 10sec;
-			 *  4. set the measurement state to measSet;
-			 *  5. break;
-			 * 
-			 * *******************************************************
-			 * 
-			 */
-			
-			/* start waveforms */
-			printf("\n StateID (Idle-%d), start waveforms, set to measSet. \n", OpMode);
-			
-			/* start laser distance sensor per 10sec */
-			printf(" run distance measurement per 10sec. \n");
-
-			delay(500);
-
-			break;
-
-		case PPM: //map to run_normal, TODO - communicate to gasMeasure thread.
-			/**********************************************************
-			 *  1. check if the gas measurement state is measSet or measReady; 
-			 *  2.1. if not, report the measurement state error;
-			 *  2.2. if it's measSet, start to running ADC capture ;
-			 *  3. start laser distance measurement per 10sec
-			 *  4. set the measurement state to measSet
-			 * 
-			 * *******************************************************
-			 * 
-			 */
-			
-			/* start waveforms */
-			printf("\n StateID (PPM-%d), Turn on the Laser & run ADC input per 100ms, set to measReady. \n", OpMode);
-			printf("  run distance measurement perSec.\n");
-			delay(500);
-			// gdk_threads_add_idle(update_ppm, (measData *)ppm);
-			//gdk_threads_add_idle(update_meas, (gpointer)&mData);
-			break;
-		case LiveCam: //map to img_capture, video display
-			printf("\n StateID (LiveCam-%d), display video, in measReady. \n", OpMode);
-			delay(100);
-
-			//gdk_threads_add_idle(live_stream, (int *)pipeline);
-			break;
-		case IRCam: //map to img_capture. image capture
-			printf("\n StateID (IRCam-%d), capture picture. in measReady\n", OpMode);
-			delay(100);
-
-			/* note - in the end of picture the state back to the Idel 
-			*  so here should turn off Laser, set to measSet, distance measurement per 10sec.
-			*/
-			printf(" turn off Laser, in measSet, distance per 10sec. \n", OpMode);
-
-			break;
-
-		case Shutdown: //map to idle_end
-			printf("\n StateID (Shutdown-%d), do daily calibration if need. \n", OpMode);
-			delay(100);
-			exit(0);
-		}
-	}
-}
-
-/* The application entry */
 int main(int argc, char *argv[])
 {
 
@@ -966,69 +740,24 @@ int main(int argc, char *argv[])
 	signal(SIGTERM, cleanup);
 	signal(SIGHUP, cleanup);
 
-	/* Intialize the app's modules */
-	//gpio_init(); // pigpio initialization
-	//btn_init();  // buttons set & set device's state
-	//set_DAC();   // set DAC output value
-	//set_TempCtrl();  // temperature controller configuration
-	//init_ADC();  // initialization of ADC
+	// Intialize the wiringPi Library
+	wiringPiSetupGpio();
+	pinMode(LEFT_BUTTON, INPUT);
+	pinMode(MIDDLE_BUTTON, INPUT);
+	pinMode(RIGHT_BUTTON, INPUT);
 
-	/* register buttons mornitor */
-	//btn_event(); // check if any buttons event happens
+	pullUpDnControl(LEFT_BUTTON, PUD_DOWN);
+	pullUpDnControl(MIDDLE_BUTTON, PUD_DOWN);
+	pullUpDnControl(RIGHT_BUTTON, PUD_DOWN);
 
-	// mData.wid = -1;
-	mData.wid = wavePiset(); // in gpio_proc.c file
+	wiringPiISR(LEFT_BUTTON, INT_EDGE_FALLING, left_button_pressed);
+	wiringPiISR(MIDDLE_BUTTON, INT_EDGE_FALLING, middle_button_pressed);
+	wiringPiISR(RIGHT_BUTTON, INT_EDGE_FALLING, right_button_pressed);
 
-	/**** config GPIOs replaced by gpio_init() and btn_init() ****/
-	// GPIOs for button, routines are wrapped in gpio_proc.c. 
-	//TODO - buttons set are moved into guiGtk_proc.c
-	gpioSetMode(LEFT_BUTTON, PI_INPUT);
-	gpioSetMode(MIDDLE_BUTTON, PI_INPUT);
-	gpioSetMode(RIGHT_BUTTON, PI_INPUT);
-
-	gpioSetPullUpDown(LEFT_BUTTON, PI_PUD_UP);
-	gpioSetPullUpDown(MIDDLE_BUTTON, PI_PUD_UP);
-	gpioSetPullUpDown(RIGHT_BUTTON, PI_PUD_UP);
-
-	int leftset = gpioSetISRFunc(LEFT_BUTTON, FALLING_EDGE, 60000, left_button_pressed);
-	int middleset = gpioSetISRFunc(MIDDLE_BUTTON, FALLING_EDGE, 60000, middle_button_pressed);
-	int rightset = gpioSetISRFunc(RIGHT_BUTTON, FALLING_EDGE, 60000, right_button_pressed);
-	printf("%d, %d, %d\n", leftset, middleset, rightset);
-
-	// GPIOs for UARTs, replace by gpio_init() & set_TempCtrl()
-	//TODO - gpio pins set are moved into measurer_utility.c files and wrapped in gpio_proc.c
-	gpioSetMode(UART_SELEC, PI_OUTPUT);
-	gpioSetMode(TEMP_ENAB, PI_OUTPUT);
-	gpioSetMode(TEMP_STAT, PI_INPUT);
-
-	gpioWrite(UART_SELEC, PI_HIGH);
-	gpioWrite(TEMP_ENAB, PI_HIGH);
-
-	// GPIOs for ADC, replace by gpio_init() & init_ADC()
-	//TODO - gpio pins set are moved into AD_DAC.c files and wrapped in gpio_proc.c
-	gpioSetMode(ADC_SELEC, PI_OUTPUT);
-	gpioSetMode(ADC_CLK_EN, PI_OUTPUT);
-	gpioSetMode(ADC_REST, PI_OUTPUT);
-	gpioSetMode(ADC_DRDY, PI_INPUT);
-
-	gpioWrite(ADC_SELEC, PI_HIGH);
-	gpioWrite(ADC_CLK_EN, PI_HIGH);
-	gpioWrite(ADC_REST, PI_HIGH);
-
-	// GPIOs for DAC, replace by gpio_init() & set_DAC()
-	//TODO - gpio pins set are moved into AD_DAC.c files and wrapped in gpio_proc.c
-	gpioSetMode(DAC_SELEC, PI_OUTPUT);
-	gpioSetMode(DAC_LDAC, PI_OUTPUT);
-
-	gpioWrite(DAC_SELEC, PI_HIGH);
-	gpioWrite(DAC_LDAC, PI_HIGH);
-
-	/* start Gtk GUI */
 	gtk_init(&argc, &argv); // init Gtk
 	gst_init(&argc, &argv); // init Gstreamer
 
-	/* Create the elements, replaced by init_gts() */
-	//TODO - gstream pipeline operations are moved into guiGtk_proc.c
+	/* Create the elements */
 	source = gst_element_factory_make("libcamerasrc", "Source");
 	filter = gst_element_factory_make("capsfilter", "filter");
 	convert = gst_element_factory_make("videoconvert", "convert");
@@ -1059,8 +788,6 @@ int main(int argc, char *argv[])
 	g_object_set(G_OBJECT(filter), "caps", videosrc_caps, NULL);
 	gst_caps_unref(videosrc_caps);
 
-	/* create GUI, replaced by init_gtk() */
-	// keep in here, some elements might to be modified. TODO.
 	builder = gtk_builder_new_from_file("gpioTest.glade");
 
 	window = GTK_WIDGET(gtk_builder_get_object(builder, "window"));
@@ -1137,17 +864,15 @@ int main(int argc, char *argv[])
 	gtk_widget_show(gps_off);
 	gtk_widget_show(laser_off);
 
-	/* set application default/start up state. TODO - check/modification */
 	OpMode = Splash;
 	/* set the window position */
 	gint x, y;
-	x = 0;
-	y = 1130;
+	x = 0; y = 1130;
 	gtk_window_set_position(GTK_WINDOW(window), GDK_GRAVITY_NORTH_WEST);
 	gtk_window_move(GTK_WINDOW(window), x, y);
-	// gtk_window_get_position(GTK_WINDOW(window), &x, &y);
-	// gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER_ALWAYS);
-
+	//gtk_window_get_position(GTK_WINDOW(window), &x, &y);
+	//gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER_ALWAYS);
+	
 	/* end the position set */
 	gtk_widget_show(window);
 
@@ -1155,36 +880,17 @@ int main(int argc, char *argv[])
 	embed_xid = GDK_WINDOW_XID(video_window_xwindow);
 	gst_video_overlay_set_window_handle(GST_VIDEO_OVERLAY(sink), embed_xid);
 
-	/* threads id, new code has dev_position(), dev_gasMeasure()*/
-	pthread_t tidMainLoop, tidMeasure; // -TODO: =>tidMainLoop, tidMeasure, tidPosition for new code
-	
-	// initialize thread mutex,
-	if (pthread_mutex_init(&pmtx_mData, NULL) != 0) {
-        printf("\n mutex init has failed\n");
-        return EXIT_FAILURE;
-    }
-  
+	/* threads id*/
+	pthread_t tid;
+
 	/* create threads */
-	// pthread_create(&tidwave, NULL, wavePiset,);
 
-	pthread_create(&tidMainLoop, NULL, start_loop_thread, pipeline); //TODO - it will be dev_mainloop()
-	/* TODO - add the other thread and some handler, dev_gasMeasure() dev_position() */
-
-	pthread_create(&tidMeasure, NULL, dev_gasMeasure_thread, &mData); //TODO - it will be dev_mainloop()
-
-
+	pthread_create(&tid, NULL, start_loop_thread, pipeline);
 	/* wait for threads (warning, they should never terminate) */
-	//pthread_join(tidMainLoop, NULL);
-	//pthread_join(tidMeasure, NULL);
+	// pthread_join(tid, NULL);
 	// setup_filestructure();
 
 	gtk_main();
-	pthread_mutex_destroy(&pmtx_mData);
-
-	/* wait for threads (warning, they should never terminate) */
-	pthread_join(tidMainLoop, NULL);
-	pthread_join(tidMeasure, NULL);
-
 
 	return EXIT_SUCCESS;
 }

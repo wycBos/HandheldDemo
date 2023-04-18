@@ -867,7 +867,7 @@ int uart_cmdmsg(UARTport *pUart, SERCmdMsg *pcdmg, int CmdID)
 	if(pUart->serID == SLE_TMPC)/* if LDIS */
 	{
 		pcdmg->cmdID = CmdID;
-		pcdmg->pcmd = (char *)&MTD415_Cmds[CmdID - 1][0];
+		pcdmg->pcmd = &MTD415_Cmds[CmdID - 1][0];
 		pcdmg->txLgth = serSendCnt(pcdmg->pcmd);
 		pcdmg->rxLgth = 2;
 		sendNo = pcdmg->txLgth;

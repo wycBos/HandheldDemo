@@ -154,7 +154,6 @@ float dist = 0;
 typedef struct measData_t
 {
 	int ppm; // count
-	float gas_ppm; // TODO - present ratio right now. it'll be changed later.
 	float ADVoltag;
 	float dist;
 	int wid;
@@ -801,7 +800,7 @@ void *start_loop_thread(void *arg)
  *    measuring value.
  *    ADC state
  * 
- * **************************************************/ 
+ * **************************************************/
 void *dev_gasMeasure_thread(void *arg)
 {
 	char buffer[5], img_filename[32];
@@ -853,105 +852,121 @@ void *dev_gasMeasure_thread(void *arg)
 		{
 			//{Splash = 0, Setup, Idle, BarGraph, PPM, LiveCam, IRCam, Shutdown}
 		case Splash: // map to idle_start.
-			/**********************************************************
-			 *  The measurement state was set to measEnter in very beginning.
-			 *  1. check if measurement state is measEnter or measIdle;
-			 *  2.1 if it's not either, report measurement error1;
-			 *  2.2 if it's measIdle, goto 5;
-			 *  2.3 if it;s measEnter, turn off Tec/Laser, and set DEC_CH0 to 0.00; 
-			 *  3.1. if need, do daily callibration;
-			 *  3.2. turn on the Tec, set the Tec & DEC_CH0_CH1 based on record file data;
-			 *  4. set the measurement state to measIdle;
-			 *  5. break;
-			 * 
-			 * *******************************************************
-			 * 
-			 */
-			
-			/* daily calibration if need, and read the parameters from record file to preparing the gas measurement */
-			printf("\n StateID (Splash-%d), do daily calibration if need. turn on Tec only.\n", OpMode);
-			printf(" read gas measurement parameters. \n");
+			//gtk_widget_hide(ppm_display_label);
+			//gtk_widget_hide(eventbox_ppm);
+			//gtk_widget_hide(video_screen);
+			//gtk_widget_show(splash_screen);
 			delay(1000);
+			//OpMode = Idle;
+			//gtk_widget_hide(splash_screen);
 			break;
 		case Setup: // map to set_device. TODO - it is a new routine.
-			/**********************************************************
-			 *  The measurement state was set to measIdle or measSet in previous running.
-			 *  1. turn off Tec/Laser, and set DEC_CH0 to 0.00; 
-			 *  2  set the measurement state to measReset;
-			 *  3. set Tec/Laser/DEC_CH0/DEC_CH1 by user;
-			 *  4. if need, save the new settings into record file;
-			 *  5. set the measurement state to measIdle
-			 * 
-			 * *******************************************************
-			 * 
-			 */
-			/* turn off Tec/Laser*/
-			printf("\n StateID (Setup-%d), setup gas measurement parameters. turn off Tec/Laser\n", OpMode);
 			delay(10);
 			break;
 
 		case Idle: // map to run_idle.
-			/**********************************************************
-			 *  1. check if the gas measurement state is measIdle or measSet; 
-			 *  2.1. if not, report the measurement state error;
-			 *  2.2. if it's measSet, goto 5;
-			 *  2.3. if it's measIdle, start the waveforms;
-			 *  3. start laser distance measurement per 10sec;
-			 *  4. set the measurement state to measSet;
-			 *  5. break;
-			 * 
-			 * *******************************************************
-			 * 
-			 */
-			
-			/* start waveforms */
-			printf("\n StateID (Idle-%d), start waveforms, set to measSet. \n", OpMode);
-			
-			/* start laser distance sensor per 10sec */
-			printf(" run distance measurement per 10sec. \n");
+			delay(10);
+			//gtk_widget_hide(gps_off);
+			//gtk_widget_hide(laser_off);
+			//gtk_widget_show(gps_on);
+			//gtk_widget_show(laser_on);
+			/* TODO - remove
+			if (status == 1)
+			{
+				* Free the pipeline *
+				sret = gst_element_set_state(pipeline, GST_STATE_PAUSED);
 
-			delay(500);
-
+				if (sret == GST_STATE_CHANGE_FAILURE)
+				{
+					gst_element_set_state(pipeline, GST_STATE_NULL);
+					g_printerr("Could not set pipeline to NULL. \n");
+					status = 1;
+				}
+				else
+				{
+					status = 0;
+					g_printerr("Called set pipeline to PAUSED. \n");
+					// hide screen widget & show bkg
+					gtk_widget_hide(video_screen);
+					gtk_widget_show(eventbox_ppm);
+					gtk_label_set_text(GTK_LABEL(left_label), (const gchar *)"Setup");
+					gtk_label_set_text(GTK_LABEL(middle_label), (const gchar *)"Start");
+					gtk_label_set_text(GTK_LABEL(right_label), (const gchar *)"Exit");
+					gtk_label_set_text(GTK_LABEL(status_label), (const gchar *)"Idle");
+				}
+			}*/
 			break;
+			
 
 		case PPM: //map to run_normal, TODO - communicate to gasMeasure thread.
-			/**********************************************************
-			 *  1. check if the gas measurement state is measSet or measReady; 
-			 *  2.1. if not, report the measurement state error;
-			 *  2.2. if it's measSet, start to running ADC capture ;
-			 *  3. start laser distance measurement per 10sec
-			 *  4. set the measurement state to measSet
-			 * 
-			 * *******************************************************
-			 * 
-			 */
-			
-			/* start waveforms */
-			printf("\n StateID (PPM-%d), Turn on the Laser & run ADC input per 100ms, set to measReady. \n", OpMode);
-			printf("  run distance measurement perSec.\n");
-			delay(500);
+			//g_mutex_lock(&mutex_1);
+			//plmData->ppm += 1;
+			//plmData->dist = UART_main();
+			//plmData->ADVoltag = ADS1115_main();
+			//g_mutex_lock(&mutex_1);
+			delay(10);
 			// gdk_threads_add_idle(update_ppm, (measData *)ppm);
 			//gdk_threads_add_idle(update_meas, (gpointer)&mData);
 			break;
 		case LiveCam: //map to img_capture, video display
-			printf("\n StateID (LiveCam-%d), display video, in measReady. \n", OpMode);
-			delay(100);
-
+			delay(10);
 			//gdk_threads_add_idle(live_stream, (int *)pipeline);
 			break;
 		case IRCam: //map to img_capture. image capture
-			printf("\n StateID (IRCam-%d), capture picture. in measReady\n", OpMode);
-			delay(100);
+			delay(10);
+			/*
+			strcpy(img_filename, "./Images/Img_");
+			{
+				// char imgPath[64];
+				// realpath(img_filename, imgPath);
+				// printf("%s\n", imgPath);
+			}
+			if (counter < 10)
+			{
+				itoa((int)counter, buffer, 10);
+				strcat(img_filename, buffer);
+				strcat(img_filename, ".jpeg");
 
-			/* note - in the end of picture the state back to the Idel 
-			*  so here should turn off Laser, set to measSet, distance measurement per 10sec.
-			*/
-			printf(" turn off Laser, in measSet, distance per 10sec. \n", OpMode);
+				g_object_get(sink, "last-sample", &from_sample, NULL);
+				if (from_sample == NULL)
+				{
+					GST_ERROR("Error getting last sample form sink");
+				}
+				image_caps = gst_caps_from_string("image/jpeg");
+				to_sample = gst_video_convert_sample(from_sample, image_caps, GST_CLOCK_TIME_NONE, &err);
+				gst_caps_unref(image_caps);
+				gst_sample_unref(from_sample);
 
+				if (to_sample == NULL && err)
+				{
+					GST_ERROR("Error converting frame: %s", err->message);
+					g_printerr("Error converting frame. \n");
+					g_error_free(err);
+				}
+				buf = gst_sample_get_buffer(to_sample);
+				if (gst_buffer_map(buf, &map_info, GST_MAP_READ))
+				{
+					if (!g_file_set_contents(img_filename, (const char *)map_info.data,
+											 map_info.size, &err))
+					{
+						GST_CAT_LEVEL_LOG(GST_CAT_DEFAULT, GST_LEVEL_WARNING, NULL, "Could not save thumbnail: %s", err->message);
+						g_error_free(err);
+					}
+				}
+				counter++;
+			}
+			else
+			{
+				int cresult;
+				counter = 0;
+				// cresult = call_Python_Stitch(6, "Image_Stitching", "main", "Images", "output.jpeg","--images","--output");
+				printf("The stitching is removed for test!\n");
+				OpMode = Idle;
+			}
+			*/	
 			break;
 
 		case Shutdown: //map to idle_end
-			printf("\n StateID (Shutdown-%d), do daily calibration if need. \n", OpMode);
 			delay(100);
 			exit(0);
 		}
@@ -1158,7 +1173,6 @@ int main(int argc, char *argv[])
 	/* threads id, new code has dev_position(), dev_gasMeasure()*/
 	pthread_t tidMainLoop, tidMeasure; // -TODO: =>tidMainLoop, tidMeasure, tidPosition for new code
 	
-	// initialize thread mutex,
 	if (pthread_mutex_init(&pmtx_mData, NULL) != 0) {
         printf("\n mutex init has failed\n");
         return EXIT_FAILURE;
@@ -1175,16 +1189,11 @@ int main(int argc, char *argv[])
 
 	/* wait for threads (warning, they should never terminate) */
 	//pthread_join(tidMainLoop, NULL);
-	//pthread_join(tidMeasure, NULL);
+	//pthread_join(tidMainLoop, NULL);
 	// setup_filestructure();
 
 	gtk_main();
 	pthread_mutex_destroy(&pmtx_mData);
-
-	/* wait for threads (warning, they should never terminate) */
-	pthread_join(tidMainLoop, NULL);
-	pthread_join(tidMeasure, NULL);
-
 
 	return EXIT_SUCCESS;
 }
