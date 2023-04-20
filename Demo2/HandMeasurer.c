@@ -675,6 +675,9 @@ gboolean live_stream(gpointer pipeline)
 void *start_loop_thread(void *arg)
 {
 	char buffer[5], img_filename[32];
+	int LSDisTiming = 10;
+	int lcurrent_sec = -1;
+
 	while (1)
 	{
 		// update time once a minute
@@ -683,8 +686,30 @@ void *start_loop_thread(void *arg)
 		if (time_info->tm_min != current_min)
 		{
 			gdk_threads_add_idle(update_time, time_info);
-			delay(1);
+			delay(10);
 			current_min = time_info->tm_min;
+		}
+				//update LS distance
+		if (((time_info->tm_sec - lcurrent_sec + 60)%60) >= LSDisTiming)//update time TODO - change to update gas Concentration.
+		{
+			lcurrent_sec = time_info->tm_sec;
+			
+			// update the distance
+			g_mutex_lock(&mutex_1);
+			pthread_mutex_lock(&pmtx_mData);
+
+			mData.ppm += 1;
+			//mData.dist = UART_main();
+			float dis = UART_distMain(LASERDST); //test pigpio-uart operions
+			if(dis >= 0.0)
+				mData.dist = dis ;
+
+			//mData.ADVoltag = ADS1115_main();
+			pthread_mutex_unlock(&pmtx_mData);
+			g_mutex_unlock(&mutex_1);
+			
+			printf("  main Mea dist - %f, %d\n", dis, lcurrent_sec);
+			
 		}
 		switch (OpMode)
 		{
@@ -703,6 +728,9 @@ void *start_loop_thread(void *arg)
 			break;
 
 		case Idle:
+			if(LSDisTiming != 10)
+				LSDisTiming = 10;
+			
 			delay(1);
 			gtk_widget_hide(gps_off);
 			gtk_widget_hide(laser_off);
@@ -738,7 +766,9 @@ void *start_loop_thread(void *arg)
 			//mData.ppm += 1;
 			//mData.dist = UART_main();
 			//mData.ADVoltag = ADS1115_main();
-			delay(500);
+			if(LSDisTiming != 1)
+				LSDisTiming = 1;
+			delay(10);
 			// gdk_threads_add_idle(update_ppm, (measData *)ppm);
 			gdk_threads_add_idle(update_meas, (gpointer)&mData);
 			break;
@@ -867,15 +897,15 @@ void *dev_gasMeasure_thread(void *arg)
 
 			plmData->ppm += 1;
 			
-			dis = UART_distMain(LASERDST); //test pigpio-uart operions
+			//dis = UART_distMain(LASERDST); //test pigpio-uart operions
 			//if(dis >= 0.0)
 			//	plmData->dist = dis ;
 
 			plmData->ADVoltag = ADS1115_main();
-			//g_mutex_lock(&mutex_1);
+			//g_mutex_unlock(&mutex_1);
 			pthread_mutex_unlock(&pmtx_mData);
 			
-			printf("gasMea dist - %f, %d\n", dis, current_sec);
+			//printf("gasMea dist - %f, %d\n", dis, current_sec);
 			for(int idx = 0; idx < 32; idx++)
 			{
 				printf("%d, \n", tickDbg[idx]);
