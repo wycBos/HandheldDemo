@@ -25,6 +25,10 @@
 #+
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 
+// #include "gpioTest.h"
+#include "UART_test.h"
+#include "waveForm.h"
+#include "ADS1x15.h"
 #include <stdlib.h>
 #include <sys/types.h>
 #include <signal.h>
@@ -38,13 +42,15 @@
 #include <ctype.h>
 #include <sys/mman.h>
 #include <stdio.h>
+#include <linux/limits.h>
 #include <wiringPi.h>
+#include <pigpio.h>
 #include <pthread.h>
 #include <signal.h>
-//#include <raspicam/raspicam.h>
+// #include <raspicam/raspicam.h>
 #include <gst/video/videooverlay.h>
 #include <gst/video/video.h>
-//#include <gst/interfaces/xoverlay.h>
+// #include <gst/interfaces/xoverlay.h>
 #include <Python.h>
 #if defined(GDK_WINDOWING_X11)
 #include <gdk/gdkx.h>
@@ -54,9 +60,29 @@
 #include <gdk/gdkquartz.h>
 #endif
 
-#define LEFT_BUTTON 22
-#define MIDDLE_BUTTON 27
-#define RIGHT_BUTTON 17
+// #include "gpioTest.h"
+/* GPIOs for Buttons */
+#define LEFT_BUTTON 22    // Input
+#define MIDDLE_BUTTON 27  // Input
+#define RIGHT_BUTTON 17   // Input
+
+/* GPIOs for UART port */
+#define UART_SELEC 	1   // 0 - Dist measu; 1 - Temp ctrl
+// distance measurement
+
+// TEMP controller
+#define TEMP_ENAB   23  // 0 - Enable; 1 - Diseable
+#define TEMP_STAT   24  // Input
+
+/* GPIOs for ADC/DAC */
+#define ADC_SELEC   8   // 0 - Enable; 1 - Disable
+#define DAC_SELEC   7   // 0 - Dist measu; 1 - Temp ctrl
+// ADC Control
+#define ADC_CLK_EN  21  // 0 - Disable; 1 - Enable 
+#define ADC_DRDY    16  // Input, 0 - Data Ready; 1 - Disable
+#define ADC_REST    20  // 0 - Reset; 1 - No Effect 
+// DAC Control
+#define DAC_LDAC    19  // 0 - Disable; 1 - Enable 
 
 GtkWidget *window;
 GtkWidget *fixed1;
@@ -121,7 +147,19 @@ int current_min = -1;
 int ppm = 0;
 int cam = 0;
 long int timedate;
-int counter = 10;
+int counter = 0;
+float dist = 0;
+
+typedef struct measData_t
+{
+	int ppm; // count
+	float ADVoltag;
+	float dist;
+	int wid;
+} measData;
+
+measData mData;
+ads1x15_p adcMain;
 
 GMutex mutex_1, mutex_2, mutex_3;
 
@@ -259,7 +297,6 @@ int call_Python_Stitch(int argc, char *argv1, char *argv2, char *argv3, char *ar
 	// Build the name object
 	pName = PyUnicode_DecodeFSDefault(argv1);
 
-
 	// Load the module object
 	pModule = PyImport_Import(pName);
 
@@ -269,10 +306,10 @@ int call_Python_Stitch(int argc, char *argv1, char *argv2, char *argv3, char *ar
 	// pFunc is also a borrowed reference
 	pFunc = PyDict_GetItemString(pDict, argv2);
 
-	//args = PyTuple_Pack(2,PyUnicode_DecodeFSDefault(argv3), PyUnicode_DecodeFSDefault(argv4));
-	//kwargs = PyTuple_Pack(2,PyUnicode_DecodeFSDefault(argv5), PyUnicode_DecodeFSDefault(argv6));
-	args = Py_BuildValue("ssss", argv5,argv3, argv6, argv4);
-	//kwargs = Py_BuildValue("ss", argv5, argv6);
+	// args = PyTuple_Pack(2,PyUnicode_DecodeFSDefault(argv3), PyUnicode_DecodeFSDefault(argv4));
+	// kwargs = PyTuple_Pack(2,PyUnicode_DecodeFSDefault(argv5), PyUnicode_DecodeFSDefault(argv6));
+	args = Py_BuildValue("ssss", argv5, argv3, argv6, argv4);
+	// kwargs = Py_BuildValue("ss", argv5, argv6);
 	if (PyCallable_Check(pFunc))
 	{
 		pmyresult = PyObject_CallObject(pFunc, NULL);
@@ -283,7 +320,6 @@ int call_Python_Stitch(int argc, char *argv1, char *argv2, char *argv3, char *ar
 		PyErr_Print();
 		i = 1;
 	}
-	
 
 	// Clean up
 	Py_DECREF(pModule);
@@ -311,8 +347,12 @@ void setup_filestructure()
 	gtk_text_view_set_buffer(setup_value_7, userID);
 }
 
-void left_button_pressed()
+void left_button_pressed(int gpio, int level, uint32_t tick)
 {
+	// printf("left-isr %d gpio, %d level, %u\n", gpio, level, tick);
+	delay(500);
+	if (level != 0)
+		return;
 
 	labelstring = gtk_label_get_text(GTK_LABEL(left_label));
 	if (strcmp(labelstring, "Setup") == 0)
@@ -343,19 +383,35 @@ void left_button_pressed()
 		labelstring = gtk_label_get_text(GTK_LABEL(status_label));
 		if (strcmp(labelstring, "Confirm Exit") == 0)
 		{
+			// if(mData.wid >= 0)
+			//{
+			//	wavePistop(mData.wid);
+			// }
+
 			gtk_label_set_text(GTK_LABEL(status_label), (const gchar *)"Bye");
 			OpMode = Shutdown;
 		}
 	}
-	else if (strcmp(labelstring, "PPM") == 0)
+	else if (strcmp(labelstring, "PPM/DIST") == 0)
 	{
+		// if(mData.wid < 0)
+		//{
+		// mData.wid = wavePiset();
+		//}
 		gtk_widget_show(ppm_display_label);
 		gtk_widget_show(eventbox_ppm);
 		gtk_label_set_text(GTK_LABEL(left_label), (const gchar *)"");
 		gtk_label_set_text(GTK_LABEL(middle_label), (const gchar *)"");
 		gtk_label_set_text(GTK_LABEL(right_label), (const gchar *)"Quit");
 		gtk_label_set_text(GTK_LABEL(status_label), (const gchar *)"Survey PPM");
+		
+		/* reset SER_SEL for distance measurement */
+
+
 		OpMode = PPM;
+
+		// delay(100);
+		// OpMode = PPM;
 	}
 	else if (strcmp(labelstring, "IR Cam") == 0)
 	{
@@ -367,20 +423,23 @@ void left_button_pressed()
 	}
 }
 
-void middle_button_pressed()
+void middle_button_pressed(int gpio, int level, uint32_t tick)
 {
+	// printf("middle-isr %d gpio, %d level, %u\n", gpio, level, tick);
+	delay(500);
+	if (level != 0)
+		return;
+
 	labelstring = gtk_label_get_text(GTK_LABEL(middle_label));
 	if (strcmp(labelstring, "Start") == 0)
 	{
 		gtk_label_set_text(GTK_LABEL(status_label), (const gchar *)"Startup");
 		// call startup sequence here
-		{
-			delay(1000);
-		}
 		gtk_label_set_text(GTK_LABEL(status_label), (const gchar *)"Choose Mode");
-		gtk_label_set_text(GTK_LABEL(left_label), (const gchar *)"PPM");
+		gtk_label_set_text(GTK_LABEL(left_label), (const gchar *)"PPM/DIST");
 		gtk_label_set_text(GTK_LABEL(middle_label), (const gchar *)"Live Cam");
 		gtk_label_set_text(GTK_LABEL(right_label), (const gchar *)"Bar Graph");
+		// printf("middle-start\n");
 	}
 	else if (strcmp(labelstring, "Live Cam") == 0)
 	{
@@ -392,6 +451,7 @@ void middle_button_pressed()
 		gtk_label_set_text(GTK_LABEL(right_label), (const gchar *)"Quit");
 		gtk_label_set_text(GTK_LABEL(status_label), (const gchar *)"Survey Live");
 		OpMode = LiveCam;
+		// printf("middle-Live Cam\n");
 	}
 	else if (strcmp(labelstring, "Snapshot") == 0)
 	{
@@ -433,9 +493,12 @@ void middle_button_pressed()
 	}
 }
 
-void right_button_pressed()
+void right_button_pressed(int gpio, int level, uint32_t tick)
 {
-
+	//printf("right-isr %d gpio, %d level, %u\n", gpio, level, tick);
+	delay(500);
+	if (level != 0)
+		return;
 	labelstring = gtk_label_get_text(GTK_LABEL(right_label));
 	if (strcmp(labelstring, "Exit") == 0)
 	{
@@ -455,6 +518,7 @@ void right_button_pressed()
 			gtk_label_set_text(GTK_LABEL(status_label), (const gchar *)"Idle");
 			OpMode = Idle;
 		}
+		// printf("right-No\n");
 	}
 	else if (strcmp(labelstring, "IR Cam") == 0)
 	{
@@ -471,6 +535,12 @@ void right_button_pressed()
 		gtk_label_set_text(GTK_LABEL(right_label), (const gchar *)"Exit");
 		gtk_label_set_text(GTK_LABEL(status_label), (const gchar *)"Idle");
 		OpMode = Idle;
+		// printf("right-Quit\n");
+		// if(mData.wid >= 0)
+		//{
+		//	wavePistop(mData.wid);
+		//	mData.wid = -1;
+		// }
 	}
 	else if (strcmp(labelstring, "Save") == 0)
 	{
@@ -485,7 +555,35 @@ gboolean update_ppm(gpointer ppm)
 	// update the GUI here:
 	// gtk_button_set_label(button,"label");
 	itoa((int)ppm, buffer, 10);
+	// itoa((float)ppm, buffer, 10);
 	strcat(buffer, " PPM");
+	strcat(buffer, "\n\r 8.0 M");
+	gtk_label_set_text(GTK_LABEL(ppm_display_label), buffer);
+
+	// And read the GUI also here, before the mutex to be unlocked:
+	// gchar * text = gtk_entry_get_text(GTK_ENTRY(entry));
+	g_mutex_unlock(&mutex_1);
+
+	return FALSE;
+}
+
+gboolean update_meas(gpointer mData)
+{
+	char buffer[30], buffer1[10], buffer2[10];
+	measData lmData = *(measData *)mData;
+
+	g_mutex_lock(&mutex_1);
+	// update the GUI here:
+	// gtk_button_set_label(button,"label");
+	// itoa((int)ppm, buffer, 10);
+	// itoa(lmData.ppm, buffer, 10);
+	sprintf(buffer, "%d", lmData.ppm);
+	strcat(buffer, " PPM\n\r");
+	sprintf(buffer1, "%2.2f", lmData.dist);
+	strcat(buffer1, " M\n\r");
+	sprintf(buffer2, "%2.2f", lmData.ADVoltag);
+	strcat(buffer2, " V\n\r");
+	strcat(strcat(buffer, buffer1), buffer2);
 	gtk_label_set_text(GTK_LABEL(ppm_display_label), buffer);
 
 	// And read the GUI also here, before the mutex to be unlocked:
@@ -502,6 +600,8 @@ gboolean update_time(gpointer time_info)
 	g_mutex_lock(&mutex_2);
 	// update the GUI here:
 	// gtk_button_set_label(button,"label");
+
+	// char *cp = calloc(1, sizeof(dateString));//test
 
 	strftime(dateString, sizeof(dateString), "%D", time_info);
 	gtk_label_set_text(GTK_LABEL(date_label), dateString);
@@ -554,7 +654,7 @@ gboolean live_stream(gpointer pipeline)
 
 void *start_loop_thread(void *arg)
 {
-	char buffer[5], img_filename[32]; 
+	char buffer[5], img_filename[32];
 	while (1)
 	{
 		// update time once a minute
@@ -615,9 +715,12 @@ void *start_loop_thread(void *arg)
 			break;
 
 		case PPM:
-			ppm += 1;
+			mData.ppm += 1;
+			mData.dist = UART_main();
+			mData.ADVoltag = ADS1115_main();
 			delay(1000);
-			gdk_threads_add_idle(update_ppm, (int *)ppm);
+			// gdk_threads_add_idle(update_ppm, (measData *)ppm);
+			gdk_threads_add_idle(update_meas, (gpointer)&mData);
 			break;
 		case LiveCam:
 			delay(1);
@@ -626,6 +729,11 @@ void *start_loop_thread(void *arg)
 		case IRCam:
 			delay(100);
 			strcpy(img_filename, "./Images/Img_");
+			{
+				// char imgPath[64];
+				// realpath(img_filename, imgPath);
+				// printf("%s\n", imgPath);
+			}
 			if (counter < 10)
 			{
 				itoa((int)counter, buffer, 10);
@@ -664,8 +772,8 @@ void *start_loop_thread(void *arg)
 			{
 				int cresult;
 				counter = 0;
-				cresult = call_Python_Stitch(6, "Image_Stitching", "main", "Images", "output.jpeg","--images","--output");
-
+				// cresult = call_Python_Stitch(6, "Image_Stitching", "main", "Images", "output.jpeg","--images","--output");
+				printf("The stitching is removed for test!\n");
 				OpMode = Idle;
 			}
 
@@ -686,18 +794,64 @@ int main(int argc, char *argv[])
 	signal(SIGHUP, cleanup);
 
 	// Intialize the wiringPi Library
-	wiringPiSetupGpio();
-	pinMode(LEFT_BUTTON, INPUT);
-	pinMode(MIDDLE_BUTTON, INPUT);
-	pinMode(RIGHT_BUTTON, INPUT);
+	// wiringPiSetupGpio();
+	// pinMode(LEFT_BUTTON, INPUT);
+	// pinMode(MIDDLE_BUTTON, INPUT);
+	// pinMode(RIGHT_BUTTON, INPUT);
 
-	pullUpDnControl(LEFT_BUTTON, PUD_DOWN);
-	pullUpDnControl(MIDDLE_BUTTON, PUD_DOWN);
-	pullUpDnControl(RIGHT_BUTTON, PUD_DOWN);
+	// pullUpDnControl(LEFT_BUTTON, PUD_DOWN);
+	// pullUpDnControl(MIDDLE_BUTTON, PUD_DOWN);
+	// pullUpDnControl(RIGHT_BUTTON, PUD_DOWN);
 
-	wiringPiISR(LEFT_BUTTON, INT_EDGE_FALLING, left_button_pressed);
-	wiringPiISR(MIDDLE_BUTTON, INT_EDGE_FALLING, middle_button_pressed);
-	wiringPiISR(RIGHT_BUTTON, INT_EDGE_FALLING, right_button_pressed);
+	// mData.wid = -1;
+	mData.wid = wavePiset();
+	// wiringPiISR(LEFT_BUTTON, INT_EDGE_FALLING, left_button_pressed);
+	// wiringPiISR(MIDDLE_BUTTON, INT_EDGE_FALLING, middle_button_pressed);
+	// wiringPiISR(RIGHT_BUTTON, INT_EDGE_FALLING, right_button_pressed);
+	// wiringPiISR(LEFT_BUTTON, INT_EDGE_RISING, left_button_pressed);
+	// wiringPiISR(MIDDLE_BUTTON, INT_EDGE_RISING, middle_button_pressed);
+	// wiringPiISR(RIGHT_BUTTON, INT_EDGE_RISING, right_button_pressed);
+
+	/* config GPIOs */
+	// GPIOs for button
+	gpioSetMode(LEFT_BUTTON, PI_INPUT);
+	gpioSetMode(MIDDLE_BUTTON, PI_INPUT);
+	gpioSetMode(RIGHT_BUTTON, PI_INPUT);
+
+	gpioSetPullUpDown(LEFT_BUTTON, PI_PUD_UP);
+	gpioSetPullUpDown(MIDDLE_BUTTON, PI_PUD_UP);
+	gpioSetPullUpDown(RIGHT_BUTTON, PI_PUD_UP);
+
+	int leftset = gpioSetISRFunc(LEFT_BUTTON, FALLING_EDGE, 60000, left_button_pressed);
+	int middleset = gpioSetISRFunc(MIDDLE_BUTTON, FALLING_EDGE, 60000, middle_button_pressed);
+	int rightset = gpioSetISRFunc(RIGHT_BUTTON, FALLING_EDGE, 60000, right_button_pressed);
+	printf("%d, %d, %d\n", leftset, middleset, rightset);
+
+	// GPIOs for UARTs
+	gpioSetMode(UART_SELEC, PI_OUTPUT);
+	gpioSetMode(TEMP_ENAB, PI_OUTPUT);
+	gpioSetMode(TEMP_STAT, PI_INPUT);
+
+	gpioWrite(UART_SELEC, PI_HIGH);
+	gpioWrite(TEMP_ENAB, PI_HIGH);
+
+	// GPIOs for ADC
+	gpioSetMode(ADC_SELEC, PI_OUTPUT);
+	gpioSetMode(ADC_CLK_EN, PI_OUTPUT);
+	gpioSetMode(ADC_REST, PI_OUTPUT);
+	gpioSetMode(ADC_DRDY, PI_INPUT);
+
+	gpioWrite(ADC_SELEC, PI_HIGH);
+	gpioWrite(ADC_CLK_EN, PI_HIGH);
+	gpioWrite(ADC_REST, PI_HIGH);
+
+	// GPIOs for DAC
+	gpioSetMode(DAC_SELEC, PI_OUTPUT);
+	gpioSetMode(DAC_LDAC, PI_OUTPUT);
+
+	gpioWrite(DAC_SELEC, PI_HIGH);
+	gpioWrite(DAC_LDAC, PI_HIGH);
+
 
 	gtk_init(&argc, &argv); // init Gtk
 	gst_init(&argc, &argv); // init Gstreamer
@@ -810,7 +964,16 @@ int main(int argc, char *argv[])
 	gtk_widget_show(laser_off);
 
 	OpMode = Splash;
+	/* set the window position */
+	gint x, y;
+	x = 0;
+	y = 1130;
+	gtk_window_set_position(GTK_WINDOW(window), GDK_GRAVITY_NORTH_WEST);
+	gtk_window_move(GTK_WINDOW(window), x, y);
+	// gtk_window_get_position(GTK_WINDOW(window), &x, &y);
+	// gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER_ALWAYS);
 
+	/* end the position set */
 	gtk_widget_show(window);
 
 	video_window_xwindow = gtk_widget_get_window(video_screen);
@@ -818,14 +981,15 @@ int main(int argc, char *argv[])
 	gst_video_overlay_set_window_handle(GST_VIDEO_OVERLAY(sink), embed_xid);
 
 	/* threads id*/
-	pthread_t tid;
+	pthread_t tid, tidwave;
 
 	/* create threads */
+	// pthread_create(&tidwave, NULL, wavePiset,);
 
 	pthread_create(&tid, NULL, start_loop_thread, pipeline);
 	/* wait for threads (warning, they should never terminate) */
 	// pthread_join(tid, NULL);
-	// setup_filestructure();
+	setup_filestructure();
 
 	gtk_main();
 
