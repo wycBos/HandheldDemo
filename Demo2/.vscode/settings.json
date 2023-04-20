@@ -17,6 +17,8 @@
         "limits": "c",
         "piserial.h": "c",
         "array": "c",
-        "ranges": "c"
+        "ranges": "c",
+        "cmath": "c",
+        "random": "c"
     }
 }

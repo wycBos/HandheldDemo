@@ -700,7 +700,7 @@ void *start_loop_thread(void *arg)
 
 			mData.ppm += 1;
 			//mData.dist = UART_main();
-			float dis = UART_distMain(LASERDST); //test pigpio-uart operions
+			float dis = UART_distMain(LASERDST);
 			if(dis >= 0.0)
 				mData.dist = dis ;
 
@@ -906,9 +906,9 @@ void *dev_gasMeasure_thread(void *arg)
 			pthread_mutex_unlock(&pmtx_mData);
 			
 			//printf("gasMea dist - %f, %d\n", dis, current_sec);
-			for(int idx = 0; idx < 32; idx++)
+			for(int idx = 0; idx < 8; idx++)
 			{
-				printf("%d, \n", tickDbg[idx]);
+				printf("%d, ", tickDbg[idx]);
 			}
 			printf("\n");
 			
@@ -968,6 +968,8 @@ void *dev_gasMeasure_thread(void *arg)
 				/* stop waveforms */
 				/* stop distance measure */
 				LSDisTiming = 100;
+				printf("\n StateID (Setup-%d), set to measSet.\n", OpMode);
+				printf(" setup flag to inform setting measurement parameters. Tec is on only.\n", OpMode);
 			}
 			
 			/* set isSetGas flag ture */ 
@@ -993,20 +995,18 @@ void *dev_gasMeasure_thread(void *arg)
 			if(measState != measIdle)
 			{
 				//if(measState == measSet)
-				/* start waveforms */
-				
+				/* start waveforms TOD later. now it starts at beginning of thread */
+					//;
 				measState = measIdle;
 				
 				/* turn laser off */
 				/* start distance measure once per 10sec */
 				LSDisTiming = 10;
+				printf("\n StateID (Idle-%d), start waveforms, set to measIdle. \n", OpMode);
+				printf("run distance measurement per 10sec. \n");
 			}
-			/* start waveforms */
-			printf("\n StateID (Idle-%d), start waveforms, set to measIdle. \n", OpMode);
+			//printf("\n StateID (Idle-%d), start waveforms, set to measIdle. \n", OpMode);
 			
-			/* start laser distance sensor per 10sec */
-			printf(" run distance measurement per 10sec. \n");
-
 			delay(100);
 
 			break;
@@ -1029,6 +1029,8 @@ void *dev_gasMeasure_thread(void *arg)
 				/* turn laser on */
 				/* start distance measure once persec */
 				LSDisTiming = 1;
+				printf("\n StateID (PPM-%d), Turn on the Laser & run ADC input per 100ms, set to measReady. \n", OpMode);
+				printf("  run distance measurement perSec.\n");
 			}
 
 			/* start ADC data read */
@@ -1036,8 +1038,6 @@ void *dev_gasMeasure_thread(void *arg)
 			//printf("\n StateID (PPM-%d), Turn on the Laser & run ADC input per 100ms, set to measReady. \n", OpMode);
 			//printf("  run distance measurement perSec.\n");
 			//delay(100);
-			// gdk_threads_add_idle(update_ppm, (measData *)ppm);
-			//gdk_threads_add_idle(update_meas, (gpointer)&mData);
 			break;
 		case LiveCam: //map to img_capture, video display done in main loop
 			if(measState != measIdle)
@@ -1058,7 +1058,7 @@ void *dev_gasMeasure_thread(void *arg)
 				/* turn laser on */
 				/* start distance measure once persec */
 			}
-			printf("\n StateID (IRCam-%d), capture picture. in measIdle\n", OpMode);
+			//printf("\n StateID (IRCam-%d), capture picture. in measIdle\n", OpMode);
 			delay(100);
 
 			break;
