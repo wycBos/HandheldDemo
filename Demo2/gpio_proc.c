@@ -315,7 +315,7 @@ int wavePiset(void)
    int g, fd, wid=-1;
    ads1x15_p adc;
  
-   if (gpioInitialise() < 0) return 1;
+   //if (gpioInitialise() < 0) return 1;
 
    adc = ADS1115_open(0, 1, 0x48, 0);
 

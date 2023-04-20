@@ -71,16 +71,21 @@
 // distance measurement
 
 // TEMP controller
-#define TEMP_ENAB   23  // 0 - Enable; 1 - Diseable
+#define TEMP_ENAB   23  // 0 - Enable; 1 - Disable
 #define TEMP_STAT   24  // Input
+
+/* Laser Detector enable */
+#define LASER_DETECT_EN 25 // 1 - Enable; 0 - Disable
 
 /* GPIOs for ADC/DAC */
 #define ADC_SELEC   8   // 0 - Enable; 1 - Disable
-#define DAC_SELEC   7   // 0 - Dist measu; 1 - Temp ctrl
+#define DAC_SELEC   7   // 0 - Enable; 1 - Disable
+
 // ADC Control
 #define ADC_CLK_EN  21  // 0 - Disable; 1 - Enable 
 #define ADC_DRDY    16  // Input, 0 - Data Ready; 1 - Disable
-#define ADC_REST    20  // 0 - Reset; 1 - No Effect 
+#define ADC_REST    20  // 0 - Reset; 1 - No Effect
+
 // DAC Control
 #define DAC_LDAC    19  // 0 - Disable; 1 - Enable 
 
@@ -813,9 +818,22 @@ void *dev_gasMeasure_thread(void *arg)
 {
 	char buffer[5], img_filename[32];
 	measData *plmData = (measData *)arg;
+	float dis;
+
+	mData.wid = wavePiset();  //TODO start when measState is measIdle.
+	printf("waveforms are generated,\n");
 
 	while (1)
 	{
+		/**************************************************
+		 * In the while loop:
+		 *  1. if measState is Idle, LS distance update once per 10Sec.
+		 *  2. if measState is ppm, LS distance update once persce, and
+		 *     LS Ratio value calculated almost once per100ms. 
+		 * ......
+		 **************************************************
+		 *
+		 * */
 		// update time once a minute
 		time(&current_time);
 		time_info = localtime(&current_time);
@@ -832,6 +850,7 @@ void *dev_gasMeasure_thread(void *arg)
 			//plmData->ADVoltag = ADS1115_main();
 			//g_mutex_lock(&mutex_1);
 		}
+		//update LS distance
 		if (time_info->tm_sec != current_sec)//update time TODO - change to update gas Concentration.
 		{
 			//gdk_threads_add_idle(update_time, time_info);
@@ -844,7 +863,6 @@ void *dev_gasMeasure_thread(void *arg)
 
 			plmData->ppm += 1;
 			
-			float dis;
 			//dis = UART_main();
 			dis = UART_distMain(LASERDST); //test pigpio-uart operions
 			if(dis >= 0.0)
@@ -1019,9 +1037,9 @@ int main(int argc, char *argv[])
 	signal(SIGTERM, cleanup);
 	signal(SIGHUP, cleanup);
 
-	/* Intialize the app's modules */
-	//gpio_init(); // pigpio initialization
-	//btn_init();  // buttons set & set device's state
+	/* Intialize the app's modules TODO later */
+	//gpio_init(); // pigpio initialization, TODO it is in gas measure thread.
+	//btn_init();  // buttons set & set device's state. done in this funciton.
 	//set_DAC();   // set DAC output value
 	//set_TempCtrl();  // temperature controller configuration
 	//init_ADC();  // initialization of ADC
@@ -1031,10 +1049,11 @@ int main(int argc, char *argv[])
 
 	// mData.wid = -1;
 	
-	mData.wid = wavePiset(); //TODO move to dev_gasMeasure_thread
-	// TODO - execute in the dev_gas_measure_thread. rouitne should be in gpio_proc.c file
+	//mData.wid = wavePiset(); //DONE move to dev_gasMeasure_thread, pigpio is initilzed in the routine.
+	if (gpioInitialise() < 0) return 1;
+	// DONE - execute in the dev_gas_measure_thread. following the main loop
 
-	/**** config GPIOs replaced by gpio_init() and btn_init() ****/
+	/**** config GPIOs replaced by gpio_init() move to gas measure thread and btn_init() ****/
 	// GPIOs for button, routines are wrapped in gpio_proc.c. 
 	//TODO - buttons set are moved into guiGtk_proc.c
 	gpioSetMode(LEFT_BUTTON, PI_INPUT);
@@ -1048,16 +1067,18 @@ int main(int argc, char *argv[])
 	int leftset = gpioSetISRFunc(LEFT_BUTTON, FALLING_EDGE, 60000, left_button_pressed);
 	int middleset = gpioSetISRFunc(MIDDLE_BUTTON, FALLING_EDGE, 60000, middle_button_pressed);
 	int rightset = gpioSetISRFunc(RIGHT_BUTTON, FALLING_EDGE, 60000, right_button_pressed);
-	printf("%d, %d, %d\n", leftset, middleset, rightset);
+	printf(" set btn Func: %d, %d, %d\n", leftset, middleset, rightset); //TODO err handler
 
 	// GPIOs for UARTs, replace by gpio_init() & set_TempCtrl()
 	//TODO - gpio pins set are moved into measurer_utility.c files and wrapped in gpio_proc.c
-	gpioSetMode(UART_SELEC, PI_OUTPUT);
-	gpioSetMode(TEMP_ENAB, PI_OUTPUT);
-	gpioSetMode(TEMP_STAT, PI_INPUT);
+	gpioSetMode(UART_SELEC, PI_OUTPUT); // for distance & Tec.
+	gpioSetMode(TEMP_ENAB, PI_OUTPUT);  // Tec enable pin.
+	gpioSetMode(TEMP_STAT, PI_INPUT);   // Tec status pin
 
-	gpioWrite(UART_SELEC, PI_HIGH);
-	gpioWrite(TEMP_ENAB, PI_HIGH);
+	gpioSetMode(LASER_DETECT_EN, PI_OUTPUT);  // Laser detector enable pin.
+
+	gpioWrite(UART_SELEC, PI_HIGH); // set for Tec
+	gpioWrite(TEMP_ENAB, PI_HIGH);  // enable Tec
 
 	// GPIOs for ADC, replace by gpio_init() & init_ADC()
 	//TODO - gpio pins set are moved into AD_DAC.c files and wrapped in gpio_proc.c
@@ -1220,8 +1241,6 @@ int main(int argc, char *argv[])
     }
   
 	/* create threads */
-	// pthread_create(&tidwave, NULL, wavePiset,);
-
 	pthread_create(&tidMainLoop, NULL, start_loop_thread, pipeline); //TODO - it will be dev_mainloop()
 	/* TODO - add the other thread and some handler, dev_gasMeasure() dev_position() */
 
