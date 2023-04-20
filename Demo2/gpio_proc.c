@@ -315,7 +315,7 @@ int wavePiset(void)
    int g, fd, wid=-1;
    ads1x15_p adc;
  
-   if (gpioInitialise() < 0) return 1;
+   //if (gpioInitialise() < 0) return 1;
 
    adc = ADS1115_open(0, 1, 0x48, 0);
 
@@ -878,8 +878,8 @@ int uart_cmdmsg(UARTport *pUart, SERCmdMsg *pcdmg, int CmdID)
 		//printf("txlg: %d; numSend %d.\n", pcdmg->txLgth, sendNo);
 	}
 
-	// check lpcdmg contents
-	printf("uartID: %d; CmdID1: %d - %d; Count %d; SendLgt %d - %d.\n", pUart->serID, CmdID, pcdmg->cmdID, pcdmg->rxLgth, sendNo, pcdmg->txLgth);
+	// check lpcdmg contents. debug data
+	//printf("uartID: %d; CmdID1: %d - %d; Count %d; SendLgt %d - %d.\n", pUart->serID, CmdID, pcdmg->cmdID, pcdmg->rxLgth, sendNo, pcdmg->txLgth);
 	//printf("cmdID: %d;   %d; Count %d; SendLgt %d.\n", CmdID, pcdmg->cmdID, pcdmg->rxLgth, sendNo);
 
 	//for (int i = 0; i < sendNo; i++)
@@ -936,7 +936,7 @@ void uart_preExch(UARTport *pUart, SERCmdMsg *cmdMsg)
 	pUart->Txbuf_lgth = cmdMsg->txLgth;
 	pUart->Rxbuf_lgth = cmdMsg->rxLgth;
 
-	printf("pre data: sum - 0x%x txlg - %d rxlg - %d. \n", sumChk, pUart->Txbuf_lgth, pUart->Rxbuf_lgth);
+	//printf("pre data: sum - 0x%x txlg - %d rxlg - %d. \n", sumChk, pUart->Txbuf_lgth, pUart->Rxbuf_lgth);//debug data
 	return;
 }
 
@@ -972,13 +972,13 @@ int uart_ExchData(UARTport *pUart, SERCmdMsg *pcmdMsg)
 	//printf(" No.Rx %d pcmdMsg 0x%x.\n\n", lrxlth, pcmdMsg->pcmd);
 
 	/* Debug code */
-	printf("\nTX Data: ");
-	for (n = 0; n < ltxlth; n++)
-	{
-		printf("0x%x ", *(pUart->pTxbuf + n));
-	}
+	//printf("\nTX Data: ");
+	//for (n = 0; n < ltxlth; n++)
+	//{
+	//	printf("0x%x ", *(pUart->pTxbuf + n));
+	//}
 
-	printf(".\n\n");
+	//printf(".\n\n");
 
 	//return n;
 	/* end of Debug */
@@ -994,13 +994,13 @@ int uart_ExchData(UARTport *pUart, SERCmdMsg *pcmdMsg)
 		uart_read(pUart, numBytes);
 		
 		/* Debug code */
-		printf("dump Data: ");
-		for (n = 0; n < numBytes; n++)
-		{
-			printf("0x%x ", *(pUart->pRxbuf + n));
-		}
+		//printf("dump Data: ");
+		//for (n = 0; n < numBytes; n++)
+		//{
+		//	printf("0x%x ", *(pUart->pRxbuf + n));
+		//}
 		
-		printf(".\n\n");
+		//printf(".\n\n");
 		/* end of Debug code */
 
 		if(numBytes = uart_dataRdy(hd) == 0)
@@ -1022,7 +1022,7 @@ int uart_ExchData(UARTport *pUart, SERCmdMsg *pcmdMsg)
 		{
 			rxNum += uart_read(pUart, numBytes);
 			
-			printf("rx-%d\n", rxNum);
+			//printf("rx-%d\n", rxNum); //debug data
 			gpioDelay(10000);
 			numBytes = uart_dataRdy(hd);
 			if(numBytes > 0)
@@ -1042,14 +1042,15 @@ int uart_ExchData(UARTport *pUart, SERCmdMsg *pcmdMsg)
 	} while (/*(numBytes <= lrxlth) &&*/ (counter < maxTry));
 
 		pUart->Rxbuf_lgth = rxNum;
-		/* Debug code */
-		printf("Received Data %d ,%d: ", counter, numBytes);
-		for (n = 0; n < rxNum; n++)
-		{
-			printf("0x%x, 0x%x ", *(pUart->pRxbuf + n), *(pUart->pTxbuf + n));
-		}
 		
-		printf(".\n\n");
+      /* Debug code */
+		//printf("Received Data %d ,%d: ", counter, numBytes);
+		//for (n = 0; n < rxNum; n++)
+		//{
+		//	printf("0x%x, 0x%x ", *(pUart->pRxbuf + n), *(pUart->pTxbuf + n));
+		//}
+		
+		//printf(".\n\n");
 		/* end of Debug code */
 		
 		/* process received data */

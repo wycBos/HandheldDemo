@@ -71,16 +71,21 @@
 // distance measurement
 
 // TEMP controller
-#define TEMP_ENAB   23  // 0 - Enable; 1 - Diseable
+#define TEMP_ENAB   23  // 0 - Enable; 1 - Disable
 #define TEMP_STAT   24  // Input
+
+/* Laser Detector enable */
+#define LASER_DETECT_EN 25 // 1 - Enable; 0 - Disable
 
 /* GPIOs for ADC/DAC */
 #define ADC_SELEC   8   // 0 - Enable; 1 - Disable
-#define DAC_SELEC   7   // 0 - Dist measu; 1 - Temp ctrl
+#define DAC_SELEC   7   // 0 - Enable; 1 - Disable
+
 // ADC Control
 #define ADC_CLK_EN  21  // 0 - Disable; 1 - Enable 
 #define ADC_DRDY    16  // Input, 0 - Data Ready; 1 - Disable
-#define ADC_REST    20  // 0 - Reset; 1 - No Effect 
+#define ADC_REST    20  // 0 - Reset; 1 - No Effect
+
 // DAC Control
 #define DAC_LDAC    19  // 0 - Disable; 1 - Enable 
 
@@ -139,6 +144,13 @@ enum Mode
 	IRCam,
 	Shutdown
 } OpMode;
+
+enum State
+{
+	measIdle = 0,
+	measSet,
+	measReady
+} measState;
 
 const gchar *labelstring, *setup_buf;
 time_t current_time;
@@ -663,6 +675,9 @@ gboolean live_stream(gpointer pipeline)
 void *start_loop_thread(void *arg)
 {
 	char buffer[5], img_filename[32];
+	int LSDisTiming = 10;
+	int lcurrent_sec = -1;
+
 	while (1)
 	{
 		// update time once a minute
@@ -671,8 +686,30 @@ void *start_loop_thread(void *arg)
 		if (time_info->tm_min != current_min)
 		{
 			gdk_threads_add_idle(update_time, time_info);
-			delay(1);
+			delay(10);
 			current_min = time_info->tm_min;
+		}
+				//update LS distance
+		if (((time_info->tm_sec - lcurrent_sec + 60)%60) >= LSDisTiming)//update time TODO - change to update gas Concentration.
+		{
+			lcurrent_sec = time_info->tm_sec;
+			
+			// update the distance
+			g_mutex_lock(&mutex_1);
+			pthread_mutex_lock(&pmtx_mData);
+
+			mData.ppm += 1;
+			//mData.dist = UART_main();
+			float dis = UART_distMain(LASERDST);
+			if(dis >= 0.0)
+				mData.dist = dis ;
+
+			//mData.ADVoltag = ADS1115_main();
+			pthread_mutex_unlock(&pmtx_mData);
+			g_mutex_unlock(&mutex_1);
+			
+			printf("  main Mea dist - %f, %d\n", dis, lcurrent_sec);
+			
 		}
 		switch (OpMode)
 		{
@@ -691,6 +728,9 @@ void *start_loop_thread(void *arg)
 			break;
 
 		case Idle:
+			if(LSDisTiming != 10)
+				LSDisTiming = 10;
+			
 			delay(1);
 			gtk_widget_hide(gps_off);
 			gtk_widget_hide(laser_off);
@@ -726,7 +766,9 @@ void *start_loop_thread(void *arg)
 			//mData.ppm += 1;
 			//mData.dist = UART_main();
 			//mData.ADVoltag = ADS1115_main();
-			delay(500);
+			if(LSDisTiming != 1)
+				LSDisTiming = 1;
+			delay(10);
 			// gdk_threads_add_idle(update_ppm, (measData *)ppm);
 			gdk_threads_add_idle(update_meas, (gpointer)&mData);
 			break;
@@ -804,32 +846,50 @@ void *start_loop_thread(void *arg)
  * **************************************************/ 
 void *dev_gasMeasure_thread(void *arg)
 {
-	char buffer[5], img_filename[32];
+	const uint32_t LSRatioTiming = 100000; //100ms
+
+	//char buffer[5], img_filename[32];
 	measData *plmData = (measData *)arg;
+	float dis;
+	uint32_t curTick, preTick, tickDbg[32];
+	int dbgIdx = 0, LSDisTiming = 10; //10s
+	preTick = curTick = gpioTick();
+
+	mData.wid = wavePiset();  //TODO start when measState is measIdle.
+	printf("waveforms are generated,\n");
 
 	while (1)
 	{
+		/**************************************************
+		 * In the while loop:
+		 *  1. if measState is Idle, LS distance update once per 10Sec.
+		 *  2. if measState is ppm, LS distance update once persce, and
+		 *     LS Ratio value calculated almost once per100ms. 
+		 * ......
+		 **************************************************
+		 *
+		 * */
 		// update time once a minute
 		time(&current_time);
 		time_info = localtime(&current_time);
-		if (time_info->tm_min != current_min)//update time TODO - change to update gas Concentration.
+		
+		curTick = gpioTick(); 
+
+		if ((curTick = abs(curTick - preTick)) >= LSRatioTiming)//update time TODO - change to update gas Concentration.
 		{
-			//gdk_threads_add_idle(update_time, time_info);
-			delay(1);
-			current_min = time_info->tm_min;
-			
-			// update the measure data
-			//g_mutex_lock(&mutex_1);
-			//plmData->ppm += 1;
-			//plmData->dist = UART_main();
-			//plmData->ADVoltag = ADS1115_main();
-			//g_mutex_lock(&mutex_1);
+			//calculate ADC intput ration;
+			gpioDelay(1000);
+			preTick = gpioTick();
+			if(measState == measReady)
+			{
+				tickDbg[dbgIdx] = curTick; dbgIdx = (dbgIdx + 1)%32;
+				//printf("    tick_delta: %d\n", curTick);
+			}
 		}
-		if (time_info->tm_sec != current_sec)//update time TODO - change to update gas Concentration.
+		//update LS distance
+		if (((time_info->tm_sec - current_sec + 60)%60) >= LSDisTiming)//update time TODO - change to update gas Concentration.
 		{
-			//gdk_threads_add_idle(update_time, time_info);
-			delay(1000);
-			//current_min = time_info->tm_sec;
+			current_sec = time_info->tm_sec;
 			
 			// update the measure data
 			//g_mutex_lock(&mutex_1);
@@ -837,17 +897,21 @@ void *dev_gasMeasure_thread(void *arg)
 
 			plmData->ppm += 1;
 			
-			float dis;
-			//dis = UART_main();
-			dis = UART_distMain(LASERDST); //test pigpio-uart operions
-			if(dis >= 0.0)
-				plmData->dist = dis ;//UART_main();
+			//dis = UART_distMain(LASERDST); //test pigpio-uart operions
+			//if(dis >= 0.0)
+			//	plmData->dist = dis ;
 
 			plmData->ADVoltag = ADS1115_main();
-			//g_mutex_lock(&mutex_1);
+			//g_mutex_unlock(&mutex_1);
 			pthread_mutex_unlock(&pmtx_mData);
-			printf("gasMea dist - %f\n", dis);
-
+			
+			//printf("gasMea dist - %f, %d\n", dis, current_sec);
+			for(int idx = 0; idx < 8; idx++)
+			{
+				printf("%d, ", tickDbg[idx]);
+			}
+			printf("\n");
+			
 		}
 		switch (OpMode)
 		{
@@ -869,8 +933,19 @@ void *dev_gasMeasure_thread(void *arg)
 			 */
 			
 			/* daily calibration if need, and read the parameters from record file to preparing the gas measurement */
+			measState = measSet;
+			/* read parameter file */
+
+			/* do daily calibration if need, TODO later */
+
+			/* turn Laser off */
+
+			/* set Tec/DAC_CH0, TODO do it later, as well as set DAC_CH1 */
+			
+			/* turn Tec on. TODO later, it cannot work in develop-system */
+
 			printf("\n StateID (Splash-%d), do daily calibration if need. turn on Tec only.\n", OpMode);
-			printf(" read gas measurement parameters. \n");
+			printf(" read gas measurement parameters. set measState to measSet\n");
 			delay(1000);
 			break;
 		case Setup: // map to set_device. TODO - it is a new routine.
@@ -885,9 +960,22 @@ void *dev_gasMeasure_thread(void *arg)
 			 * *******************************************************
 			 * 
 			 */
-			/* turn off Tec/Laser*/
-			printf("\n StateID (Setup-%d), setup gas measurement parameters. turn off Tec/Laser\n", OpMode);
-			delay(10);
+			/* turn off Laser*/
+			if(measState != measSet)
+			{
+				measState = measSet;
+				/* turn laser off */
+				/* stop waveforms */
+				/* stop distance measure */
+				LSDisTiming = 100;
+				printf("\n StateID (Setup-%d), set to measSet.\n", OpMode);
+				printf(" setup flag to inform setting measurement parameters. Tec is on only.\n", OpMode);
+			}
+			
+			/* set isSetGas flag ture */ 
+			printf("\n StateID (Setup-%d), set to measSet.\n", OpMode);
+			printf(" setup flag to inform setting measurement parameters. Tec is on only.\n", OpMode);
+			delay(1000);
 			break;
 
 		case Idle: // map to run_idle.
@@ -904,13 +992,22 @@ void *dev_gasMeasure_thread(void *arg)
 			 * 
 			 */
 			
-			/* start waveforms */
-			printf("\n StateID (Idle-%d), start waveforms, set to measSet. \n", OpMode);
+			if(measState != measIdle)
+			{
+				//if(measState == measSet)
+				/* start waveforms TOD later. now it starts at beginning of thread */
+					//;
+				measState = measIdle;
+				
+				/* turn laser off */
+				/* start distance measure once per 10sec */
+				LSDisTiming = 10;
+				printf("\n StateID (Idle-%d), start waveforms, set to measIdle. \n", OpMode);
+				printf("run distance measurement per 10sec. \n");
+			}
+			//printf("\n StateID (Idle-%d), start waveforms, set to measIdle. \n", OpMode);
 			
-			/* start laser distance sensor per 10sec */
-			printf(" run distance measurement per 10sec. \n");
-
-			delay(500);
+			delay(100);
 
 			break;
 
@@ -918,35 +1015,51 @@ void *dev_gasMeasure_thread(void *arg)
 			/**********************************************************
 			 *  1. check if the gas measurement state is measSet or measReady; 
 			 *  2.1. if not, report the measurement state error;
-			 *  2.2. if it's measSet, start to running ADC capture ;
+			 *  2.2. if it's measSet, turn laser on & start to running ADC capture ;
 			 *  3. start laser distance measurement per 10sec
-			 *  4. set the measurement state to measSet
+			 *  4. set the measurement state to measReady
 			 * 
 			 * *******************************************************
 			 * 
 			 */
 			
-			/* start waveforms */
-			printf("\n StateID (PPM-%d), Turn on the Laser & run ADC input per 100ms, set to measReady. \n", OpMode);
-			printf("  run distance measurement perSec.\n");
-			delay(500);
-			// gdk_threads_add_idle(update_ppm, (measData *)ppm);
-			//gdk_threads_add_idle(update_meas, (gpointer)&mData);
+			if(measState != measReady)
+			{
+				measState = measReady;
+				/* turn laser on */
+				/* start distance measure once persec */
+				LSDisTiming = 1;
+				printf("\n StateID (PPM-%d), Turn on the Laser & run ADC input per 100ms, set to measReady. \n", OpMode);
+				printf("  run distance measurement perSec.\n");
+			}
+
+			/* start ADC data read */
+						
+			//printf("\n StateID (PPM-%d), Turn on the Laser & run ADC input per 100ms, set to measReady. \n", OpMode);
+			//printf("  run distance measurement perSec.\n");
+			//delay(100);
 			break;
-		case LiveCam: //map to img_capture, video display
-			printf("\n StateID (LiveCam-%d), display video, in measReady. \n", OpMode);
+		case LiveCam: //map to img_capture, video display done in main loop
+			if(measState != measIdle)
+			{
+				printf("\n LiveCam with Err-measState %d, should be measIdle. \n", measState);
+				/* turn laser on */
+				/* start distance measure once persec */
+			}
+			printf("\n StateID (LiveCam-%d), display video, in measIdle. \n", OpMode);
 			delay(100);
 
 			//gdk_threads_add_idle(live_stream, (int *)pipeline);
 			break;
-		case IRCam: //map to img_capture. image capture
-			printf("\n StateID (IRCam-%d), capture picture. in measReady\n", OpMode);
+		case IRCam: //map to img_capture. image capture done in main loop
+			if(measState != measIdle)
+			{
+				printf("\n IRCam with Err-measState %d, should be measIdle. \n", measState);
+				/* turn laser on */
+				/* start distance measure once persec */
+			}
+			//printf("\n StateID (IRCam-%d), capture picture. in measIdle\n", OpMode);
 			delay(100);
-
-			/* note - in the end of picture the state back to the Idel 
-			*  so here should turn off Laser, set to measSet, distance measurement per 10sec.
-			*/
-			printf(" turn off Laser, in measSet, distance per 10sec. \n", OpMode);
 
 			break;
 
@@ -966,9 +1079,9 @@ int main(int argc, char *argv[])
 	signal(SIGTERM, cleanup);
 	signal(SIGHUP, cleanup);
 
-	/* Intialize the app's modules */
-	//gpio_init(); // pigpio initialization
-	//btn_init();  // buttons set & set device's state
+	/* Intialize the app's modules TODO later */
+	//gpio_init(); // pigpio initialization, TODO it is in gas measure thread.
+	//btn_init();  // buttons set & set device's state. done in this funciton.
 	//set_DAC();   // set DAC output value
 	//set_TempCtrl();  // temperature controller configuration
 	//init_ADC();  // initialization of ADC
@@ -977,9 +1090,12 @@ int main(int argc, char *argv[])
 	//btn_event(); // check if any buttons event happens
 
 	// mData.wid = -1;
-	mData.wid = wavePiset(); // in gpio_proc.c file
+	
+	//mData.wid = wavePiset(); //DONE move to dev_gasMeasure_thread, pigpio is initilzed in the routine.
+	if (gpioInitialise() < 0) return 1;
+	// DONE - execute in the dev_gas_measure_thread. following the main loop
 
-	/**** config GPIOs replaced by gpio_init() and btn_init() ****/
+	/**** config GPIOs replaced by gpio_init() move to gas measure thread and btn_init() ****/
 	// GPIOs for button, routines are wrapped in gpio_proc.c. 
 	//TODO - buttons set are moved into guiGtk_proc.c
 	gpioSetMode(LEFT_BUTTON, PI_INPUT);
@@ -993,16 +1109,18 @@ int main(int argc, char *argv[])
 	int leftset = gpioSetISRFunc(LEFT_BUTTON, FALLING_EDGE, 60000, left_button_pressed);
 	int middleset = gpioSetISRFunc(MIDDLE_BUTTON, FALLING_EDGE, 60000, middle_button_pressed);
 	int rightset = gpioSetISRFunc(RIGHT_BUTTON, FALLING_EDGE, 60000, right_button_pressed);
-	printf("%d, %d, %d\n", leftset, middleset, rightset);
+	printf(" set btn Func: %d, %d, %d\n", leftset, middleset, rightset); //TODO err handler
 
 	// GPIOs for UARTs, replace by gpio_init() & set_TempCtrl()
 	//TODO - gpio pins set are moved into measurer_utility.c files and wrapped in gpio_proc.c
-	gpioSetMode(UART_SELEC, PI_OUTPUT);
-	gpioSetMode(TEMP_ENAB, PI_OUTPUT);
-	gpioSetMode(TEMP_STAT, PI_INPUT);
+	gpioSetMode(UART_SELEC, PI_OUTPUT); // for distance & Tec.
+	gpioSetMode(TEMP_ENAB, PI_OUTPUT);  // Tec enable pin.
+	gpioSetMode(TEMP_STAT, PI_INPUT);   // Tec status pin
 
-	gpioWrite(UART_SELEC, PI_HIGH);
-	gpioWrite(TEMP_ENAB, PI_HIGH);
+	gpioSetMode(LASER_DETECT_EN, PI_OUTPUT);  // Laser detector enable pin.
+
+	gpioWrite(UART_SELEC, PI_HIGH); // set for Tec
+	gpioWrite(TEMP_ENAB, PI_HIGH);  // enable Tec
 
 	// GPIOs for ADC, replace by gpio_init() & init_ADC()
 	//TODO - gpio pins set are moved into AD_DAC.c files and wrapped in gpio_proc.c
@@ -1165,8 +1283,6 @@ int main(int argc, char *argv[])
     }
   
 	/* create threads */
-	// pthread_create(&tidwave, NULL, wavePiset,);
-
 	pthread_create(&tidMainLoop, NULL, start_loop_thread, pipeline); //TODO - it will be dev_mainloop()
 	/* TODO - add the other thread and some handler, dev_gasMeasure() dev_position() */
 
