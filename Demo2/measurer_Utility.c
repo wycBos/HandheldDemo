@@ -136,9 +136,16 @@ int gasMeasStart() //for ADS131
    adc_channel_data *padcData = &adcData;
    userData* pfuncData = &adcCapFuncData;
    
-   pfuncData->pRslts = &adcRltData[0];
-
+   /* start the ads131 chip */
    hd = tspi_ads131m04_start(pregInf, padcData);
+
+   /* set capture function to ads131 */
+   pfuncData->pRslts = &adcRltData[0];
+   pfuncData->handle = hd;
+   pfuncData->datIdx = 0;
+   pfuncData->isRun = 0;
+   gpioSetAlertFuncEx(ADC_DRDY, NULL, pfuncData);
+
    return hd;
 }
 

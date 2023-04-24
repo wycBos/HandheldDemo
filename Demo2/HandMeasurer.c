@@ -743,7 +743,7 @@ void *start_loop_thread(void *arg)
 			pthread_mutex_unlock(&pmtx_mData);
 			g_mutex_unlock(&mutex_1);
 			
-			printf("  main Mea dist - %f, %d\n", dis, lcurrent_sec);
+			printf("  main Mea dist - %f, %d, %d\n", dis, lcurrent_sec, LSDisTiming);
 			
 		}
 		switch (OpMode)
@@ -759,6 +759,12 @@ void *start_loop_thread(void *arg)
 			gtk_widget_hide(splash_screen);
 			break;
 		case Setup:
+			if(LSDisTiming != 100)
+			{
+				LSDisTiming = 100;
+				//printf("set the setup timing to 100.\n");
+			}
+
 			delay(1);
 			break;
 
@@ -889,7 +895,9 @@ void *dev_gasMeasure_thread(void *arg)
 	uint32_t curTick, preTick, tickDbg[32];
 	int dbgIdx = 0, LSDisTiming = 10; //10s
 	preTick = curTick = gpioTick();
-	userData *pcapFuncData = &adcCapFuncData;
+	userData *pcapFuncData = &adcCapFuncData; //TODO - it is first definition here?
+
+	pcapFuncData->handle = -1; // no handle enable.
 
 	mData.wid = wavePiset();  //TODO start when measState is measIdle.
 	printf("waveforms are generated,\n");
@@ -935,7 +943,7 @@ void *dev_gasMeasure_thread(void *arg)
 				}
 			}
 		}
-		//update LS distance
+		//update LS distance, now it's only for ADS1115 ADC update!
 		if (((time_info->tm_sec - current_sec + 60)%60) >= LSDisTiming)//update time TODO - change to update gas Concentration.
 		{
 			current_sec = time_info->tm_sec;
@@ -946,7 +954,7 @@ void *dev_gasMeasure_thread(void *arg)
 
 			plmData->ppm += 1;
 			
-			//dis = UART_distMain(LASERDST); //test pigpio-uart operions
+			//dis = UART_distMain(LASERDST); //test pigpio-uart operions. move to the main loop!!!
 			//if(dis >= 0.0)
 			//	plmData->dist = dis ;
 
@@ -954,7 +962,7 @@ void *dev_gasMeasure_thread(void *arg)
 			//g_mutex_unlock(&mutex_1);
 			pthread_mutex_unlock(&pmtx_mData);
 			
-			//printf("gasMea dist - %f, %d\n", dis, current_sec);
+			//printf("gasMea dist - %f, %d, %d\n", dis, current_sec, LSDisTiming);//never need!!!
 			//for(int idx = 0; idx < 8; idx++)
 			//{
 			//	printf("%d, ", tickDbg[idx]);
@@ -993,6 +1001,10 @@ void *dev_gasMeasure_thread(void *arg)
 			
 			/* turn Tec on. TODO later, it cannot work in develop-system */
 
+			/* start gas measuring ADC */
+			if(pcapFuncData->handle < 0)
+				gasMeasStart(); //only set the ADC, no capture.
+
 			printf("\n StateID (Splash-%d), do daily calibration if need. turn on Tec only.\n", OpMode);
 			printf(" read gas measurement parameters. set measState to measSet\n");
 			delay(1000);
@@ -1014,15 +1026,20 @@ void *dev_gasMeasure_thread(void *arg)
 			{
 				measState = measSet;
 				/* turn laser off */
+				
+				/* close gas LS ADC capture */
+				//gasMeasStart(); //TODO - close capture adc data
+				
 				/* stop waveforms */
-				/* stop distance measure */
-				LSDisTiming = 100;
+				
+				/* stop distance measure, now in the main loop */
+				//LSDisTiming = 100;
 				printf("\n StateID (Setup-%d), set to measSet.\n", OpMode);
-				printf(" setup flag to inform setting measurement parameters. Tec is on only.\n", OpMode);
+				printf(" setup flag to inform setting measurement parameters. Tec is on only. \n", OpMode);
 			}
 			
 			/* set isSetGas flag ture */ 
-			printf("\n StateID (Setup-%d), set to measSet.\n", OpMode);
+			printf("\n StateID (Setup-%d), in setup.\n", OpMode);
 			printf(" setup flag to inform setting measurement parameters. Tec is on only.\n", OpMode);
 			delay(1000);
 			break;
@@ -1050,10 +1067,10 @@ void *dev_gasMeasure_thread(void *arg)
 				/* turn gas laser on */
 				gpioWrite(LASER_DETECT_EN, PI_HIGH);  // enaable gas laser
 				
-				/* start gas measuring ADC */
-				gasMeasStart(); //TODO - check the adcData definition
+				/* start gas LD ADC capture */
+				//gasMeasStart(); //TODO - close capture adc data
 
-				/* start distance measure once per 10sec */
+				/* start distance measure once per 10sec, now in the main loop */
 				LSDisTiming = 10;
 
 				measState = measIdle;
@@ -1081,10 +1098,13 @@ void *dev_gasMeasure_thread(void *arg)
 			if(measState != measReady)
 			{
 				measState = measReady;
-				/* set adc event function */
+				/* set adc capture function */
+				pcapFuncData->datIdx = 0;
+				pcapFuncData->isRun = 1;
 				gpioSetAlertFuncEx(ADC_DRDY, adcCaptureFun, pcapFuncData);
-				/* start distance measure once persec */
-				LSDisTiming = 1;
+				
+				/* start distance measure once persec, now in the main loop */
+				//LSDisTiming = 1;
 				printf("\n StateID (PPM-%d), Turn on the Laser & run ADC input per 100ms, set to measReady. \n", OpMode);
 				printf("  run distance measurement perSec.\n");
 			}
