@@ -8,7 +8,7 @@
 //#include <wiringSerial.h>
 #include <pigpio.h>
 #include "waveForm.h"
-#include "ADS1x15.h"
+//#include "ADS1x15.h"
 
 #if 1
 static const unsigned int CFG_SAMRATE = 2;

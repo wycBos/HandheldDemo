@@ -415,11 +415,6 @@ float ADS1115_main(void)
 ***************************************************************************
 */
 
-#define DAC_LDAC 19
-#define MCP4822_DAB (1 << 15)
-#define MCP4822_GA1 (1 << 13)  //0-set to 2x gain; 1-set to 1x gain.
-#define MCP4822_ACT (1 << 12)  //0-disable the DAC output; 1-enable the DAC output.
-
 void tspi_mcp4822(int channel, int command, double valu) // SPI channel test MCP4822
 {
    /**********************************
@@ -576,154 +571,18 @@ void tspi_mcp4822(int channel, int command, double valu) // SPI channel test MCP
 /* The routines for ADS131M04 */
 /*
 ***************************************************************************
-*  The SPI periphearl for ADS131M04 ADC initialization                    *
+*  The routines for ADS131M04 ADC operations                   *
 *  \fn void tspi_ads131m04_init(int channel, int command, double value)   *
 *                                                                         *
-*  \param channel is the MCP4822 DAC channel ID 0-A, 1-B                  *
-*         command indicates the operation to do:                          *
-*                       0-disable output,                                 *
-*                       1-enable the output,                              *
-*                       2-load the new value                              *
-*         value is the output value in volt.                              *
+*  \param channel is the ADS131m94 channel ID 0, 1, 2, 3                  *
 *                                                                         *
 *  \return None                                                           *
 *                                                                         *
 ***************************************************************************
 */
-/* TODO - move to head file */
-#define ADC_CLKIN_EN 21
-#define ADC_SYNC_RST 20
-#define ADC_DRDY 16
-
-// SPI commands definitions
-#define OPCODE_NULL ((uint16_t)0x0000)
-#define OPCODE_RESET ((uint16_t)0x0011)
-#define OPCODE_RREG ((uint16_t)0xA000)
-#define OPCODE_WREG ((uint16_t)0x6000)
-#define OPCODE_STANDBY ((uint16_t)0x0022)
-#define OPCODE_WAKEUP ((uint16_t)0x0033)
-#define OPCODE_LOCK ((uint16_t)0x0555)
-#define OPCODE_UNLOCK ((uint16_t)0x0655)
-
-#define ID_ADDRESS ((uint8_t)0x00)
-#define ID_DEFAULT ((uint16_t)0x2000 | (CHANNEL_COUNT << 8)) // NOTE: May change with future device revisions!
-#define STATUS_ADDRESS ((uint8_t)0x01)
-#define STATUS_DEFAULT ((uint16_t)0x0500)
-#define MODE_ADDRESS ((uint8_t)0x02)
-#define MODE_DEFAULT ((uint16_t)0x0510)
-#define CLOCK_ADDRESS ((uint8_t)0x03)
-#define CLOCK_DEFAULT ((uint16_t)0x0F0E)
-#define GAIN1_ADDRESS ((uint8_t)0x04)
-#define GAIN1_DEFAULT ((uint16_t)0x0000)
-#define GAIN2_ADDRESS ((uint8_t)0x05)
-#define GAIN2_DEFAULT ((uint16_t)0x0000)
-#define CFG_ADDRESS ((uint8_t)0x06)
-#define CFG_DEFAULT ((uint16_t)0x0600)
-#define THRSHLD_MSB_ADDRESS ((uint8_t)0x07)
-#define THRSHLD_MSB_DEFAULT ((uint16_t)0x0000)
-#define THRSHLD_LSB_ADDRESS ((uint8_t)0x08)
-#define THRSHLD_LSB_DEFAULT ((uint16_t)0x0000)
-#define CH0_CFG_ADDRESS ((uint8_t)0x09)
-#define CH0_CFG_DEFAULT ((uint16_t)0x0000)
-#define CH0_OCAL_MSB_ADDRESS ((uint8_t)0x0A)
-#define CH0_OCAL_MSB_DEFAULT ((uint16_t)0x0000)
-#define CH0_OCAL_LSB_ADDRESS ((uint8_t)0x0B)
-#define CH0_OCAL_LSB_DEFAULT ((uint16_t)0x0000)
-#define CH0_GCAL_MSB_ADDRESS ((uint8_t)0x0C)
-#define CH0_GCAL_MSB_DEFAULT ((uint16_t)0x0000)
-#define CH0_GCAL_LSB_ADDRESS ((uint8_t)0x0D)
-#define CH0_GCAL_LSB_DEFAULT ((uint16_t)0x0000)
-#define CH1_CFG_ADDRESS ((uint8_t)0x0E)
-#define CH1_CFG_DEFAULT ((uint16_t)0x0000)
-#define CH1_OCAL_MSB_ADDRESS ((uint8_t)0x0F)
-#define CH1_OCAL_MSB_DEFAULT ((uint16_t)0x0000)
-#define CH1_OCAL_LSB_ADDRESS ((uint8_t)0x10)
-#define CH1_OCAL_LSB_DEFAULT ((uint16_t)0x0000)
-#define CH1_GCAL_MSB_ADDRESS ((uint8_t)0x11)
-#define CH1_GCAL_MSB_DEFAULT ((uint16_t)0x8000)
-#define CH1_GCAL_LSB_ADDRESS ((uint8_t)0x12)
-#define CH1_GCAL_LSB_DEFAULT ((uint16_t)0x0000)
-#define CH2_CFG_ADDRESS ((uint8_t)0x13)
-#define CH2_CFG_DEFAULT ((uint16_t)0x0000)
-#define CH2_OCAL_MSB_ADDRESS ((uint8_t)0x14)
-#define CH2_OCAL_MSB_DEFAULT ((uint16_t)0x0000)
-#define CH2_OCAL_LSB_ADDRESS ((uint8_t)0x15)
-#define CH2_OCAL_LSB_DEFAULT ((uint16_t)0x0000)
-#define CH2_GCAL_MSB_ADDRESS ((uint8_t)0x16)
-#define CH2_GCAL_MSB_DEFAULT ((uint16_t)0x8000)
-#define CH2_GCAL_LSB_ADDRESS ((uint8_t)0x17)
-#define CH2_GCAL_LSB_DEFAULT ((uint16_t)0x0000)
-#define CH3_CFG_ADDRESS ((uint8_t)0x18)
-#define CH3_CFG_DEFAULT ((uint16_t)0x0000)
-#define CH3_OCAL_MSB_ADDRESS ((uint8_t)0x19)
-#define CH3_OCAL_MSB_DEFAULT ((uint16_t)0x0000)
-#define CH3_OCAL_LSB_ADDRESS ((uint8_t)0x1A)
-#define CH3_OCAL_LSB_DEFAULT ((uint16_t)0x0000)
-#define CH3_GCAL_MSB_ADDRESS ((uint8_t)0x1B)
-#define CH3_GCAL_MSB_DEFAULT ((uint16_t)0x8000)
-#define CH3_GCAL_LSB_ADDRESS ((uint8_t)0x1C)
-#define CH3_GCAL_LSB_DEFAULT ((uint16_t)0x0000)
-#define REGMAP_CRC_ADDRESS ((uint8_t)0x3E)
-#define REGMAP_CRC_DEFAULT ((uint16_t)0x0000)
-
-#define NUM_REGISTERS ((uint8_t)64)
-
-typedef struct
-{
-   uint16_t response;
-   uint16_t crc;
-   int32_t channel0;
-   int32_t channel1;
-   int32_t channel2;
-   int32_t channel3;
-} adc_channel_data;
-
-typedef struct
-{
-   uint16_t regAddr;
-   uint16_t setData;
-   uint16_t numRegs;
-} regInfor;
-
-typedef struct
-{
-   float ratio;
-   float squF1;
-   float squF2;
-}caliRlt;
-
-typedef struct
-{
-   int dataCnt;
-   caliRlt Rslt[30];
-}manuCst;
-
-adc_channel_data adcData;
-regInfor regSetInf;
-
-static uint16_t registerMap[NUM_REGISTERS];
-
-/* TODO - move to head file */
-#define SAMPRAT (1000000/210)
-#define ADCLNTH 32
-
-typedef struct ADCRsults_t{
-   uint32_t tick;
-   double results0;
-   double results1;
-   double results2;
-   double results3;
-}adcRslts;
-
-typedef struct UserData_t{
-   int handle;
-   int isRun;
-   int datIdx;
-   uint32_t preTick;
-   adcRslts *pRslts;
-}userData;
 
 adcRslts adcRltData[ADCLNTH];
+adc_channel_data adcData; // TODO double check it
 userData adcCapFuncData;
 
 /********************** prototype ****************/
@@ -914,7 +773,7 @@ uint16_t tspi_ads131m04_rd(int SPIhandler, regInfor *getInf)
 {
    uint16_t ret = 0, rsp;
    regInfor *lpgetInf = getInf;
-   adc_channel_data *lpadcData = &adcData;
+   adc_channel_data *lpadcData = &adcData;  //TODO - move into arguments of the function
 
    /* reead ads131m04 register */
    // regSetInf.regAddr = getInf->regAddr;
@@ -931,7 +790,7 @@ uint16_t tspi_ads131m04_wt(int SPIhandler, regInfor *setInf)
    uint16_t ret = 0, rsp;
    /* write ads131m04 register */
    regInfor *lpgetInf = setInf;
-   adc_channel_data *lpadcData = &adcData;
+   adc_channel_data *lpadcData = &adcData;  //TODO - move into arguments of function
 
    /* reead ads131m04 register */
    // regSetInf.regAddr = setInf->regAddr;
@@ -943,158 +802,19 @@ uint16_t tspi_ads131m04_wt(int SPIhandler, regInfor *setInf)
    return rsp;
 }
 
-/*******************************************************
- * It calls a python rouitne to set the temperature controller.
- * - Parameters:
- *   argc: number of parameters
- *   argv1: module name
- *   argv2: function name
- *   argv3: parameter1
- *   argv4: parameter2
- *   ......
- * 
- * *****************************************************/
-// cresult = call_Python_Stitch(6, "Image_Stitching", "main", "Images", "output.jpeg","--images","--output");
-				
-char *tempCtrll_py(int argc, char *argv1, char *argv2, char *argv3)
-{
-#if 0 //for debug
-	PyObject *pName, *pModule, *pDict, *pFunc, *pValue, *pmyresult, *args, *kwargs;
-	int i;
-	char resultStr[32], *presultStr = &resultStr;
-
-    //gpioSetMode(SER_SEL, PI_OUTPUT);
-	gpioWrite(SER_SEL, SLE_TMPC); // select temperature controler
-    
-	// Set PYTHONPATH TO working directory used for GPS parser
-	//setenv("PYTHONPATH", "/home/pi/gpsPy:/home/pi/nmea_parser-master:/home/pi/nmea_parser-master/nmea:/home/pi/nmea_parser-master/nmea/core", 1);
-	setenv("PYTHONPATH", "/home/pi/mtd415py:/home/pi/mtd415lib/thorlabs-mtd415t:/home/pi/mtd415lib/thorlabs-mtd415t/thorlabs_mtd415t", 1);
-	//printf("PATH: %s\n", getenv("PATH"));
-	//printf("PYTHONPATH: %s\n", getenv("PYTHONPATH"));
-	//printf("in the ctrl_py(%d):\n\r   %s\n\r   %s\n\r   %s\n\r", argc, argv1, argv2, argv3);
-	//return;
-
-	wchar_t *program = Py_DecodeLocale(argv1, NULL);
-	if (program == NULL)
-	{
-		fprintf(stderr, "Fatal error: cannot decode argv[0]\n");
-		exit(1);
-	}
-	Py_SetProgramName(program); /* optional but recommended */
-	// Initialize the Python Interpreter
-	Py_Initialize();
-	//PySys_SetPath("/home/pi/nmea_parser-master");
-	//printf("PATH: %s\n", getenv("PATH"));
-	//printf("PYTHONPATH: %s\n", getenv("PYTHONPATH"));
-	
-	// Build the name object
-	pName = PyUnicode_DecodeFSDefault(argv1);
-	//pName = PyUnicode_FromString("nmeaParser");
-
-	// Load the module object
-	pModule = PyImport_Import(pName);
-	if(pModule == NULL)
-	{
-		fprintf(stderr, "Fatal error: cannot load the module\n");
-		exit(1);
-	}
-
-	// pDict is a borrowed reference
-	pDict = PyModule_GetDict(pModule);
-	if(pDict == NULL)
-	{
-		fprintf(stderr, "Fatal error: cannot get a Dict\n");
-		exit(1);
-	}
-	// pFunc is also a borrowed reference
-	pFunc = PyDict_GetItemString(pDict, argv2);
-	if(pFunc == NULL)
-	{
-		fprintf(stderr, "Fatal error: cannot get a function\n");
-		exit(1);
-	}
-	if(strcmp("null", argv3))
-	{
-		//printf("the argv3 is not null. %s\n\r", argv3);
-		args = PyTuple_Pack(1,PyUnicode_DecodeFSDefault(argv3));
-	}
-		args = PyTuple_Pack(1,PyUnicode_DecodeFSDefault(argv3));
-	// kwargs = PyTuple_Pack(2,PyUnicode_DecodeFSDefault(argv5), PyUnicode_DecodeFSDefault(argv6));
-	// args = Py_BuildValue("ssss", argv5, argv3, argv6, argv4);
-	// kwargs = Py_BuildValue("ss", argv5, argv6);
-
-	if (PyCallable_Check(pFunc))
-	{
-		if(strcmp("null", argv3))
-			pmyresult = PyObject_CallObject(pFunc, args/*NULL*/);
-		else
-			pmyresult = PyObject_CallObject(pFunc, NULL);
-		i = 0;
-	}
-	else
-	{
-		PyErr_Print();
-		i = 1;
-		return;
-
-	}
-	PyUnicode_CheckExact(pmyresult);
-	//printf("in the ctrl_py\n");
-
-	if (PyUnicode_Check(pmyresult))
-	{
-		//clrscr();
-		PyObject *temp_bytes = PyUnicode_AsEncodedString(pmyresult, "UTF-8", "strict"); // Owned reference
-		if (temp_bytes != NULL)
-		{
-			presultStr = PyBytes_AS_STRING(temp_bytes); // Borrowed pointer
-			presultStr = strdup(presultStr);
-			Py_DECREF(temp_bytes);
-			//printf("  py return: %s", presultStr);
-			/* split string presultStr by "," */
-			//char *p = strtok(presultStr, ", ");
-    		//while(p)
-    		//{
-        	//	printf("%s \n", p); //print newline
-        	//	p = strtok(NULL, ", ");
-    		//}
-		}
-		else
-		{
-			printf("in the ctrl_py\n");
-			return;
-			// TODO: Handle encoding error.
-		}
-	}
-	else{
-		printf("no string return\n\r");
-	}
-
-	// Clean up
-	Py_DECREF(pModule);
-	Py_DECREF(pName);
-
-	// Finish the Python Interpreter
-	Py_Finalize();
-
-	//gpioWrite(SER_SEL, SLE_LDIS); // set low (borrow SLE_LDIS)
-
-	return presultStr;
-#endif
-   return argv2;
-}
-
 /*************************************************
  * ads131m04 event function.
  * 
  * ***********************************************
  * 
  * */
+regInfor regSetInf; //TODO - move to the definition part of this file.
+
 void adcCaptureFun(int gpio, int level, uint32_t tick, userData* padcCapFuncData) //a callback function for capture adc data.
 {
    int reps, h, isRn, idx;
    uint32_t lpreTick;
-   regInfor *pregInf = &regSetInf;
+   regInfor *pregInf = &regSetInf;  //TODO - move into uaserData
    
    lpreTick = padcCapFuncData->preTick;
    h = padcCapFuncData->handle;
@@ -1218,7 +938,7 @@ void adcCaptureFun(int gpio, int level, uint32_t tick, userData* padcCapFuncData
    // char rxBuf[8] = {0};
    // adc_channel_data Data;
 
-   //printf("ads131 start up.\n");
+   printf("ads131 start up.\n");
 
    /* set the ADC_CLKIN_EN */
    gpioSetMode(ADC_CLKIN_EN, PI_OUTPUT);
@@ -1261,7 +981,7 @@ void adcCaptureFun(int gpio, int level, uint32_t tick, userData* padcCapFuncData
    // h = spiOpen(0, 1250000, 1); // open SPI decice "/dev/spidev0.0" with mode 1 for ads131m04
    h = spiOpen(0, 2500000, 1); // open SPI decice "/dev/spidev0.0" with mode 1 for ads131m04
    //CHECK(12, 1, h, 4, 100, "spiOpenADC");
-   //printf("ADC - %d", h);
+   printf("ADC - %d", h);
 
    /* Initialize SPI device ADS131M04 */
    /*
@@ -1292,7 +1012,7 @@ void adcCaptureFun(int gpio, int level, uint32_t tick, userData* padcCapFuncData
 
    // valiate first response word with (0xFF20 | CHANCNT)
    // rep0 = (uint16_t)retrData(h, OPCODE_NULL, 2); //it's done in th esendCommand()???
-   rep0 = adcData.response;
+   rep0 = padcData->response; //adcData.response;
    printf("start ads131m04 0x%x. \n", rep0);
    gpioDelay(500);
    
@@ -1314,218 +1034,6 @@ int tspi_ads131m04_close(int SPIhandler) // close ads131m04, return SPI handle
    gpioWrite(ADC_CLKIN_EN, 0); // disable external clock 8.024MHz
 
    return ext;
-}
-
-/* TODO - capture laser output */
-   /* use alert function */
-
-// data used in the getLSRatio
-char *mtd415 = "mtd415Set";
-char *mtd415setFunc = "tecCmdset";
-char *mtd415getFunc = "tecCmdget";
-
-//userData* pfuncData = &adcCapFuncData;
-float getLSRatio(userData* pfuncData)
-{
-   {
-      int count = 0;
-   float tecRet = 0;
-   char *presult;
-   manuCst cnstRlts;
-
-      /* initialize the ncurses lib */
-//      initscr();
-      /* use alert function */
-      pfuncData->datIdx = 0;
-      pfuncData->isRun = 1;
-      
-      gpioSetAlertFuncEx(ADC_DRDY, adcCaptureFun, pfuncData);
-
-      /* while loop for checking temp and adc each 100 ms */
-      uint32_t curTick, preTick;
-      uint32_t preDatTick = 0;
-      int ratioIdx = 0, capIdx = 0;
-      float ratioArray[20];
-      preTick = curTick = gpioTick(); 
-      while(/*!kbhit()*/pfuncData->isRun == 1 && count < 24)
-      {
-         //if((curTick - preTick) >= 100000)
-         //cnstRlts.dataCnt;
-         if(pfuncData->datIdx > 23)
-         {
-            pfuncData->isRun = 0;
-            /* get temperature */              
-            //char *pargu1 = "mtd415Set";
-            //char argu2[32] = "tecCmd"; 
-            char argu3[32] = "get temperature";
-            //char *presult;
-         
-            presult = tempCtrll_py(3, mtd415, mtd415getFunc, &argu3[0]);
-            printf("\r     temperature is %s.\r\n", presult);
-
-            /* calculate data */
-            int32_t fx1 = 0,fy1 = 0, fx2 = 0, fy2 = 0, maxDtick = 0, curTick;
-            double df1, df2, v1, v2, v3, v4, step;
-            
-            for(int n = 2; n < 22; n++)
-            {
-               fx1 += (pfuncData->pRslts + n)->results0;
-               fy1 += (pfuncData->pRslts + n)->results1;
-               fx2 += (pfuncData->pRslts + n)->results2;
-               fy2 += (pfuncData->pRslts + n)->results3;
-               if(n > 3)
-                  curTick = (pfuncData->pRslts + n)->tick - (pfuncData->pRslts + (n - 1))->tick;
-               maxDtick = (maxDtick > curTick) ? maxDtick:curTick;
-            }
-
-            fx1 /= 20; fy1 /= 20; fx2 /= 20; fy2 /= 20;
-            
-            /* convert to voltage */
-            //int count = 0, countf = 0;
-               
-            #if 1  //TODO - rm following code 
-            uint32_t ticksSum = 0;
-
-            if(fx1 > 0x7fffff) //adcData.channel0
-            {
-               v1 = (double)(~(fx1 | 0xff000000)+1);
-               v1 = -v1;
-            }
-            else
-            {
-               v1 = (double)fx1;
-            }
-
-            if(fy1 > 0x7fffff) //adcData.channel1
-            {
-               v2 = (double)(~(fy1 | 0xff000000)+1);
-               v2 = -v2;
-            }
-            else
-            {
-               v2 = (double)fy1;
-            }
-            
-            if(fx2 > 0x7fffff) //adcData.channel2
-            {
-               v3 = (double)(~(fx2 | 0xff000000)+1);
-               v3 = -v3;
-            }
-            else
-            {
-               v3 = (double)fx2;
-            }
-            
-            if(fy2 > 0x7fffff) //adcData.channel3
-            {
-               v4 = (double)(~(fy2 | 0xff000000)+1);
-               v4 = -v4;
-            }
-            else
-            {
-               v4 = (double)fy2;
-            }
-            #endif //TODO end
-
-            step = 1200000.0 / 8388607.0;
-
-            v1 *= step;
-            v2 *= step;
-            v3 *= step;
-            v4 *= step;
-            
-            df1 = v1*v1 + v2*v2;
-            df2 = v3*v3 + v4*v4;
-
-            df1 = sqrt(df1);
-            df2 = sqrt(df2);
-
-            curTick = gpioTick();
-
-            capIdx = cnstRlts.dataCnt = count;
-            
-            capIdx = capIdx%20;
-            cnstRlts.dataCnt = capIdx;
-            if(df2 != 0.0)
-            {
-               //n = (n+1)%20;
-               //cnstRlts.dataCnt = n;
-
-               cnstRlts.Rslt[capIdx].squF1 = df1;
-               cnstRlts.Rslt[capIdx].squF2 = df2;
-               ratioArray[capIdx] = cnstRlts.Rslt[capIdx].ratio = df1/df2;
-               //printf("     lasting %d max-dalt %d; result %.4f, %.4f and ratio %.4f\n\r", (curTick - preTick), maxDtick, df1, df2, df1/df2);
-               printf("     result %.4f, %.4f and ratio %.4f\n\r", df1, df2, df1/df2);
-            }
-            else
-            {
-               printf("    dF2 is zero. %.4f, %.4f", df1, df2);
-            }
-            //printf("    (%d): %.02f, %.02f, %.2f, %.2f\n\r", count, v1, v2, v3, v4);
-         
-            /* renew the data buffer */
-            pfuncData->datIdx = 0;
-            pfuncData->isRun = 1;
-            curTick = preTick = gpioTick();
-            count++;
-            //}
-
-            /* end of convert */
-            
-            /* output data */
-            printf("\r    Time lasting in Samples: %d - %d -- %d\n\r", (pfuncData->pRslts + 2)->tick,
-            (pfuncData->pRslts + 21)->tick,
-            (pfuncData->pRslts + 21)->tick - (pfuncData->pRslts + 2)->tick);
-
-            //curTick = gpioTick();
-         }
-         //if(kbhit())
-         //{
-         //   pfuncData->isRun = 0;
-         //   break;
-         //}
-      }
-
-      /* any keyboard press ends the loop */
-      //printf(" ");
-      //scanf("%s", command);
-
-      pfuncData->isRun = 0;
-      
-      //endwin(); //end ncurses
-
-      /* check the capture data */
-      printf("\n\n    Calculating Constant.\n     Input the gas concentration: ");
-      float cnstRlt = 0, samplePercent = 0, avgRatio = 0;
-      samplePercent = 0; avgRatio = 0;
-      scanf("%f", &samplePercent);
-
-      for(ratioIdx = 0; ratioIdx < 20; ratioIdx++)
-      {
-         avgRatio += ratioArray[ratioIdx];
-         //printf("     debug (%d)) %.4f, %.4f\n", ratioIdx, ratioArray[ratioIdx], avgRatio);
-      }
-      
-      if(avgRatio == 0)
-      {
-         printf("the ratio is zero!\n");
-      }
-      else{
-         printf("    totalRatio %.4f; numbers %d\n", avgRatio, ratioIdx);
-         avgRatio /= ratioIdx;
-         cnstRlt = samplePercent/avgRatio;
-         printf("\n     Average Ration %.4f; concentration %.4f The contant is %.4f. \n", 
-               avgRatio, samplePercent, cnstRlt);
-      }
-
-
-      /* save data in a file */
-      // save date and time in file
-
-      // save current constant in file TODO save result into a file
-      //fprintf(fh, "Gas Concentration: %.4f, Constant: %.4f, AvgRatio: %.4f\n", samplePercent, cnstRlt, avgRatio);
-
-   }
 }
 
 

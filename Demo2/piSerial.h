@@ -107,7 +107,7 @@ typedef struct portUART_t{ // UART module
 /* serial operations functions */
 //void UART_distMain(int isConti);
 //void UART_tempCMain(int isConti);
-void tempCtrll_py(int argc, char *argv1, char *argv2, char *argv3);
+const char *tempCtrll_py(int argc, char *argv1, char *argv2, char *argv3);
 
 int uart_start(int chan, UARTport* uart);
 int uart_close(int SERHandle, UARTport* uart);

@@ -10,6 +10,7 @@
                 "/usr/include/gstreamer-1.0",
                 "/usr/include/gstreamer-1.0/gst/video",
                 "/usr/lib/arm-linux-gnueabihf/glib-2.0/include",
+                "/usr/include/arm-linux-gnueabihf/bits/",
                 "/usr/include/pango-1.0",
                 "/usr/include/harfbuzz",
                 "/usr/include/cairo",

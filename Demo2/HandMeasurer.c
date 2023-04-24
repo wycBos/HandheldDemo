@@ -61,6 +61,7 @@
 #endif
 
 #include "piSerial.h"
+//#include "ADS1x15.h"
 /* GPIOs for Buttons */
 #define LEFT_BUTTON 22    // Input
 #define MIDDLE_BUTTON 27  // Input
@@ -145,7 +146,7 @@ enum Mode
 	Shutdown
 } OpMode;
 
-enum State
+enum mState
 {
 	measIdle = 0,
 	measSet,
@@ -163,13 +164,47 @@ long int timedate;
 int counter = 0;
 float dist = 0;
 
+/* gas measure thread data */
+typedef struct measThread_t
+{
+	int curMeasSt;
+	void *measData;
+}measThr;
+
+typedef struct tecParms_t
+{
+	int curState;
+	float tempPoint;
+	float currenLimit;
+	float p_gain;
+	float i_gain;
+	float g_gain;
+	
+}tecSettings;
+
+typedef struct DACParms_t
+{
+	float voltCh0;
+	float voltCh1;
+}dacSettings;
+
+typedef struct ADCParms_t
+{
+	int curStatr;
+	void *pSettings;
+}adcSettings;
+
 typedef struct measData_t
 {
 	int ppm; // count
 	float gas_ppm; // TODO - present ratio right now. it'll be changed later.
+	float cur_temp;
 	float ADVoltag;
 	float dist;
 	int wid;
+	tecSettings  tecSets;
+	dacSettings dacSets;
+	adcSettings adcSets;
 } measData;
 
 measData mData;
@@ -850,10 +885,11 @@ void *dev_gasMeasure_thread(void *arg)
 
 	//char buffer[5], img_filename[32];
 	measData *plmData = (measData *)arg;
-	float dis;
+	float dis, ratioArry[32];
 	uint32_t curTick, preTick, tickDbg[32];
 	int dbgIdx = 0, LSDisTiming = 10; //10s
 	preTick = curTick = gpioTick();
+	userData *pcapFuncData = &adcCapFuncData;
 
 	mData.wid = wavePiset();  //TODO start when measState is measIdle.
 	printf("waveforms are generated,\n");
@@ -877,13 +913,18 @@ void *dev_gasMeasure_thread(void *arg)
 
 		if ((curTick = abs(curTick - preTick)) >= LSRatioTiming)//update time TODO - change to update gas Concentration.
 		{
-			//calculate ADC intput ration;
 			gpioDelay(1000);
 			preTick = gpioTick();
 			if(measState == measReady)
 			{
-				tickDbg[dbgIdx] = curTick; dbgIdx = (dbgIdx + 1)%32;
-				//printf("    tick_delta: %d\n", curTick);
+				//calculate ADC intput ration;
+				float rslt = getLSRatio(pcapFuncData); // TODO creat routine in utility file.
+				
+				//debug code
+				tickDbg[dbgIdx] = curTick;
+				ratioArry[32] = rslt;
+				dbgIdx = (dbgIdx + 1)%32;
+				printf("    tick_delta: %d, %.4f\n", curTick, rslt);
 			}
 		}
 		//update LS distance
@@ -980,12 +1021,12 @@ void *dev_gasMeasure_thread(void *arg)
 
 		case Idle: // map to run_idle.
 			/**********************************************************
-			 *  1. check if the gas measurement state is measIdle or measSet; 
+			 *  1. check if the gas measurement state is measIdle; 
 			 *  2.1. if not, report the measurement state error;
-			 *  2.2. if it's measSet, goto 5;
-			 *  2.3. if it's measIdle, start the waveforms;
+			 *  2.2. if it's measSet, start the waveforms;
+			 *  2.3. if it's measIdle, goto step t5;
 			 *  3. start laser distance measurement per 10sec;
-			 *  4. set the measurement state to measSet;
+			 *  4. turn on gas laser, set the measurement state to measIdle;
 			 *  5. break;
 			 * 
 			 * *******************************************************
@@ -997,11 +1038,17 @@ void *dev_gasMeasure_thread(void *arg)
 				//if(measState == measSet)
 				/* start waveforms TOD later. now it starts at beginning of thread */
 					//;
-				measState = measIdle;
 				
-				/* turn laser off */
+				/* turn gas laser on */
+				gpioWrite(LASER_DETECT_EN, PI_HIGH);  // enaable gas laser
+				
+				/* start gas measuring ADC */
+				gasMeasStart(); //TODO - check the adcData definition
+
 				/* start distance measure once per 10sec */
 				LSDisTiming = 10;
+
+				measState = measIdle;
 				printf("\n StateID (Idle-%d), start waveforms, set to measIdle. \n", OpMode);
 				printf("run distance measurement per 10sec. \n");
 			}
@@ -1027,6 +1074,7 @@ void *dev_gasMeasure_thread(void *arg)
 			{
 				measState = measReady;
 				/* turn laser on */
+
 				/* start distance measure once persec */
 				LSDisTiming = 1;
 				printf("\n StateID (PPM-%d), Turn on the Laser & run ADC input per 100ms, set to measReady. \n", OpMode);
@@ -1117,10 +1165,11 @@ int main(int argc, char *argv[])
 	gpioSetMode(TEMP_ENAB, PI_OUTPUT);  // Tec enable pin.
 	gpioSetMode(TEMP_STAT, PI_INPUT);   // Tec status pin
 
-	gpioSetMode(LASER_DETECT_EN, PI_OUTPUT);  // Laser detector enable pin.
+	gpioSetMode(LASER_DETECT_EN, PI_OUTPUT);  // gas laser enable pin.
+	gpioWrite(LASER_DETECT_EN, PI_LOW);  // disable gas laser
 
 	gpioWrite(UART_SELEC, PI_HIGH); // set for Tec
-	gpioWrite(TEMP_ENAB, PI_HIGH);  // enable Tec
+	gpioWrite(TEMP_ENAB, PI_HIGH);  // disable Tec
 
 	// GPIOs for ADC, replace by gpio_init() & init_ADC()
 	//TODO - gpio pins set are moved into AD_DAC.c files and wrapped in gpio_proc.c
