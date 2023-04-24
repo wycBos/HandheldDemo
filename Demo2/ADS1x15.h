@@ -217,7 +217,7 @@ typedef struct UserData_t{// it's use in the file.
    adcRslts *pRslts;
 }userData;
 
-//adcRslts adcRltData[ADCLNTH]; // TODO - move to .c file
+extern adcRslts adcRltData[ADCLNTH]; // TODO - move to .c file
 extern userData adcCapFuncData; // TODO - move to .c file
 
 /* functions supports ADS1115 AD Concerter */

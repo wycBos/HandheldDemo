@@ -129,14 +129,17 @@ float getGasConcentr()
 
 int gasMeasStart() //for ADS131
 {
-    int hd = -1;
-    //regInfor *pregInf;
-    //adc_channel_data *padcData; // TODO check where it is definced.
-    regInfor *pregInf = &regSetInf;
-    adc_channel_data *padcData = &adcData; // TODO point to global variable.
+   int hd = -1;
+   //regInfor *pregInf;
+   //adc_channel_data *padcData; // TODO check where it is definced(DONE).
+   regInfor *pregInf = &regSetInf;
+   adc_channel_data *padcData = &adcData;
+   userData* pfuncData = &adcCapFuncData;
+   
+   pfuncData->pRslts = &adcRltData[0];
 
-    hd = tspi_ads131m04_start(pregInf, padcData);
-    return hd;
+   hd = tspi_ads131m04_start(pregInf, padcData);
+   return hd;
 }
 
 /* old ratio function */
@@ -145,8 +148,6 @@ char *mtd415 = "mtd415Set";
 char *mtd415setFunc = "tecCmdset";
 char *mtd415getFunc = "tecCmdget";
 
-//userData* pfuncData = &adcCapFuncData;
-
 float getLSRatio(userData* pfuncData) //TODO - place userData by measThr.
 {
     int count = 0;
@@ -154,10 +155,12 @@ float getLSRatio(userData* pfuncData) //TODO - place userData by measThr.
     char *presult;
     manuCst cnstRlts;
 
-    /* use alert function */
-      pfuncData->datIdx = 0;
-      pfuncData->isRun = 1;
-      
+   //return 0.5; //debug code
+   /* use alert function */
+   pfuncData->datIdx = 0;
+   pfuncData->isRun = 1;
+
+   #if 0 //for capture ads131 data   
       gpioSetAlertFuncEx(ADC_DRDY, adcCaptureFun, pfuncData);
 
       /* while loop for checking temp and adc each 100 ms */
@@ -343,8 +346,8 @@ float getLSRatio(userData* pfuncData) //TODO - place userData by measThr.
 
       // save current constant in file TODO save result into a file
       //fprintf(fh, "Gas Concentration: %.4f, Constant: %.4f, AvgRatio: %.4f\n", samplePercent, cnstRlt, avgRatio);
-
-   return avgRatio;
+   #endif
+   return 0.5; //avgRatio;
 }
 
 

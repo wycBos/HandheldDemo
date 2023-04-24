@@ -885,7 +885,7 @@ void *dev_gasMeasure_thread(void *arg)
 
 	//char buffer[5], img_filename[32];
 	measData *plmData = (measData *)arg;
-	float dis, ratioArry[32];
+	float dis, rsltRatio, ratioArry[32];
 	uint32_t curTick, preTick, tickDbg[32];
 	int dbgIdx = 0, LSDisTiming = 10; //10s
 	preTick = curTick = gpioTick();
@@ -918,13 +918,21 @@ void *dev_gasMeasure_thread(void *arg)
 			if(measState == measReady)
 			{
 				//calculate ADC intput ration;
-				float rslt = getLSRatio(pcapFuncData); // TODO creat routine in utility file.
+				rsltRatio = getLSRatio(pcapFuncData); // TODO creat routine in utility file.
 				
 				//debug code
 				tickDbg[dbgIdx] = curTick;
-				ratioArry[32] = rslt;
+				ratioArry[dbgIdx] = rsltRatio;
 				dbgIdx = (dbgIdx + 1)%32;
-				printf("    tick_delta: %d, %.4f\n", curTick, rslt);
+				if(!dbgIdx)
+				{
+					for(int idx = 0; idx < 8; idx++)
+					{
+						printf("%d, %.4f\n", tickDbg[idx], ratioArry[idx]);
+					}
+					printf("\n");
+					//printf("    tick_delta: %d, %.4f\n", curTick, rslt);
+				}
 			}
 		}
 		//update LS distance
@@ -947,11 +955,11 @@ void *dev_gasMeasure_thread(void *arg)
 			pthread_mutex_unlock(&pmtx_mData);
 			
 			//printf("gasMea dist - %f, %d\n", dis, current_sec);
-			for(int idx = 0; idx < 8; idx++)
-			{
-				printf("%d, ", tickDbg[idx]);
-			}
-			printf("\n");
+			//for(int idx = 0; idx < 8; idx++)
+			//{
+			//	printf("%d, ", tickDbg[idx]);
+			//}
+			//printf("\n");
 			
 		}
 		switch (OpMode)
@@ -1073,8 +1081,8 @@ void *dev_gasMeasure_thread(void *arg)
 			if(measState != measReady)
 			{
 				measState = measReady;
-				/* turn laser on */
-
+				/* set adc event function */
+				gpioSetAlertFuncEx(ADC_DRDY, adcCaptureFun, pcapFuncData);
 				/* start distance measure once persec */
 				LSDisTiming = 1;
 				printf("\n StateID (PPM-%d), Turn on the Laser & run ADC input per 100ms, set to measReady. \n", OpMode);
