@@ -61,7 +61,7 @@
 #endif
 
 #include "piSerial.h"
-//#include "ADS1x15.h"
+#include "ADS1x15.h"
 /* GPIOs for Buttons */
 #define LEFT_BUTTON 22    // Input
 #define MIDDLE_BUTTON 27  // Input
@@ -925,18 +925,23 @@ void *dev_gasMeasure_thread(void *arg)
 			preTick = gpioTick();
 			if(measState == measReady)
 			{
-				//calculate ADC intput ration;
+				//calculate ADC intput ration, capturing adc is opened.
+				pthread_mutex_lock(&pmtx_funcData);
 				rsltRatio = getLSRatio(pcapFuncData); // TODO creat routine in utility file.
+				
+				/* check pcapFuncData -debugging */
+				//printf(" funcData: %d, %.4f\n", pcapFuncData->datIdx, (pcapFuncData->pRslts + 4)->results1);
+				pthread_mutex_unlock(&pmtx_funcData);
 				
 				//debug code
 				tickDbg[dbgIdx] = curTick;
 				ratioArry[dbgIdx] = rsltRatio;
-				dbgIdx = (dbgIdx + 1)%32;
+				dbgIdx = (dbgIdx + 1)%10;
 				if(!dbgIdx)
 				{
-					for(int idx = 0; idx < 8; idx++)
+					for(int idx = 0; idx < 10; idx++)
 					{
-						printf("%d, %.4f\n", tickDbg[idx], ratioArry[idx]);
+						printf(" Ratio: %d, %.4f\n", tickDbg[idx], ratioArry[idx]);
 					}
 					printf("\n");
 					//printf("    tick_delta: %d, %.4f\n", curTick, rslt);
@@ -1028,7 +1033,14 @@ void *dev_gasMeasure_thread(void *arg)
 				/* turn laser off */
 				
 				/* close gas LS ADC capture */
-				//gasMeasStart(); //TODO - close capture adc data
+				//gasMeasStart();
+				pthread_mutex_lock(&pmtx_funcData);
+				pcapFuncData->datIdx = 0;
+				pcapFuncData->isRun = 0;
+				gpioSetAlertFuncEx(ADC_DRDY, NULL, pcapFuncData);
+				pthread_mutex_unlock(&pmtx_funcData);
+
+				//TODO - close capture adc data
 				
 				/* stop waveforms */
 				
@@ -1060,20 +1072,30 @@ void *dev_gasMeasure_thread(void *arg)
 			
 			if(measState != measIdle)
 			{
-				//if(measState == measSet)
-				/* start waveforms TOD later. now it starts at beginning of thread */
+				if(measState == measSet)
+				{
+					/* start waveforms TOD later. now it starts at beginning of thread */
 					//;
 				
-				/* turn gas laser on */
-				gpioWrite(LASER_DETECT_EN, PI_HIGH);  // enaable gas laser
+					/* turn gas laser on */
+					gpioWrite(LASER_DETECT_EN, PI_HIGH);  // enaable gas laser
+
+				}
+
+				measState = measIdle;
 				
 				/* start gas LD ADC capture */
-				//gasMeasStart(); //TODO - close capture adc data
+				//gasMeasStart(); 
+				//TODO - close capture adc data
+				pthread_mutex_lock(&pmtx_funcData);
+				pcapFuncData->datIdx = 0;
+				pcapFuncData->isRun = 0;
+				gpioSetAlertFuncEx(ADC_DRDY, NULL, pcapFuncData);
+				pthread_mutex_unlock(&pmtx_funcData);
 
 				/* start distance measure once per 10sec, now in the main loop */
 				LSDisTiming = 10;
 
-				measState = measIdle;
 				printf("\n StateID (Idle-%d), start waveforms, set to measIdle. \n", OpMode);
 				printf("run distance measurement per 10sec. \n");
 			}
@@ -1098,11 +1120,12 @@ void *dev_gasMeasure_thread(void *arg)
 			if(measState != measReady)
 			{
 				measState = measReady;
-				/* set adc capture function */
+				/* set adc capture function, open adc capture */
+				pthread_mutex_lock(&pmtx_funcData);
 				pcapFuncData->datIdx = 0;
 				pcapFuncData->isRun = 1;
 				gpioSetAlertFuncEx(ADC_DRDY, adcCaptureFun, pcapFuncData);
-				
+				pthread_mutex_unlock(&pmtx_funcData);
 				/* start distance measure once persec, now in the main loop */
 				//LSDisTiming = 1;
 				printf("\n StateID (PPM-%d), Turn on the Laser & run ADC input per 100ms, set to measReady. \n", OpMode);
@@ -1355,7 +1378,12 @@ int main(int argc, char *argv[])
 	
 	// initialize thread mutex,
 	if (pthread_mutex_init(&pmtx_mData, NULL) != 0) {
-        printf("\n mutex init has failed\n");
+        printf("\n pmtx_mData init has failed\n");
+        return EXIT_FAILURE;
+    }
+
+	if (pthread_mutex_init(&pmtx_funcData, NULL) != 0) {
+        printf("\n pmtx_funcData init has failed\n");
         return EXIT_FAILURE;
     }
   

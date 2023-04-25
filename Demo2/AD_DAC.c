@@ -12,6 +12,7 @@
 #include <math.h>
 #include <time.h>
 #include <pigpio.h>
+#include <pthread.h>
 #include "ADS1x15.h"
 
 float _GAIN[] =
@@ -584,6 +585,7 @@ void tspi_mcp4822(int channel, int command, double valu) // SPI channel test MCP
 adcRslts adcRltData[ADCLNTH];
 adc_channel_data adcData; // TODO double check it
 userData adcCapFuncData;
+pthread_mutex_t pmtx_funcData;
 
 /********************** prototype ****************/
 void set_DAC() //TOTO - set MCP4822 output value
@@ -816,6 +818,7 @@ void adcCaptureFun(int gpio, int level, uint32_t tick, userData* padcCapFuncData
    uint32_t lpreTick;
    regInfor *pregInf = &regSetInf;  //TODO - move into uaserData
    
+   pthread_mutex_lock(&pmtx_funcData);
    lpreTick = padcCapFuncData->preTick;
    h = padcCapFuncData->handle;
    isRn = padcCapFuncData->isRun;
@@ -826,7 +829,7 @@ void adcCaptureFun(int gpio, int level, uint32_t tick, userData* padcCapFuncData
          pregInf->regAddr = 1;
          pregInf->numRegs = 0; //numRegs;
          reps = tspi_ads131m04_rd(h, pregInf);
-         /*
+#if 0         
          double step = 1200000.0 / 8388607.0;
          double v1, v2, v3, v4;
 
@@ -869,14 +872,15 @@ void adcCaptureFun(int gpio, int level, uint32_t tick, userData* padcCapFuncData
          {
             v4 = (double)adcData.channel3;
          }
-         */
+#endif //TODO - remove above code
+
          /* updata the adcCapFuncData */
          idx = (idx + 1)%ADCLNTH;
          padcCapFuncData->datIdx = idx;
          padcCapFuncData->preTick = tick;
          (padcCapFuncData->pRslts + idx)->tick = tick;
 
-
+#if 0
          //v1 *= step;
          //v2 *= step;
          //v3 *= step;
@@ -886,7 +890,8 @@ void adcCaptureFun(int gpio, int level, uint32_t tick, userData* padcCapFuncData
          //(padcCapFuncData->pRslts + idx)->results1 = v2;
          //(padcCapFuncData->pRslts + idx)->results2 = v3;
          //(padcCapFuncData->pRslts + idx)->results3 = v4;
-         
+#endif //TODO - remove above code
+
          //TODO - convert to int type
          int dataIn = adcData.channel0;
          if(dataIn > 0x7fffff)
@@ -918,9 +923,12 @@ void adcCaptureFun(int gpio, int level, uint32_t tick, userData* padcCapFuncData
 
          
          //printf("Data(%d, %u): 0x%x, %.02f, %.02f, %.2f, %.2f\n", gpio, tick-lpreTick, adcData.response, v1, v2, v3, v4);
+         //printf("Data(%d, %u): %d\n", gpio, tick-lpreTick, adcData.response);
                
    }
    
+   pthread_mutex_unlock(&pmtx_funcData);
+   //printf("Data(%d, %u): %d\n", gpio, tick-lpreTick, level);
    return;
 }
 

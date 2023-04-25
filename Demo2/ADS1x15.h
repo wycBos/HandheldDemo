@@ -14,6 +14,7 @@ it is retrived from lg_ads1x15 in lg ligrary.
 #define ADS1x115_H
 
 #include <stdio.h>
+#include <pthread.h>
 #include <wiringPi.h>
 //#include <wiringSerial.h>
 #include <stdbool.h>
@@ -219,6 +220,7 @@ typedef struct UserData_t{// it's use in the file.
 
 extern adcRslts adcRltData[ADCLNTH]; // TODO - move to .c file
 extern userData adcCapFuncData; // TODO - move to .c file
+extern pthread_mutex_t pmtx_funcData;
 
 /* functions supports ADS1115 AD Concerter */
 //ads1x15_p adc;

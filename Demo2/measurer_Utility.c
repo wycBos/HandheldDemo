@@ -157,204 +157,175 @@ char *mtd415getFunc = "tecCmdget";
 
 float getLSRatio(userData* pfuncData) //TODO - place userData by measThr.
 {
-    int count = 0;
-    float tecRet = 0;
-    char *presult;
-    manuCst cnstRlts;
+   int count = 0;
+   float tecRet = 0;
+   char *presult;
+   manuCst cnstRlts;
+   
+   uint32_t curTick, preTick;
+   uint32_t preDatTick = 0;
+   int ratioIdx = 0, capIdx = 0;
+   float avgRatio, ratioArray[20];
 
    //return 0.5; //debug code
-   /* use alert function */
-   pfuncData->datIdx = 0;
-   pfuncData->isRun = 1;
+   /* use alert function - DONE in the PPM mode, removed here*/
+   //pfuncData->datIdx = 0;
+   //pfuncData->isRun = 1;
+   //gpioSetAlertFuncEx(ADC_DRDY, adcCaptureFun, pfuncData);
+   #if 1 //for capture ads131 data   
+   /* while loop for checking temp and adc each 100 ms */
+   preTick = curTick = gpioTick(); 
+   
+   //while(/*!kbhit()*/pfuncData->isRun == 1 && count < 24) //TODO - do not need it in Demo2
+   {
+      //if((curTick - preTick) >= 100000)
+      //cnstRlts.dataCnt;
+      //if(pfuncData->datIdx > 23) // TODO - do not need it
+      /* check how many samples are available */
+      int numSamples = pfuncData->datIdx;
+      //printf("    number of samples %d.\n", numSamples);
+      #if 1 //for debugging
+      if(numSamples > 15){
 
-   #if 0 //for capture ads131 data   
-      gpioSetAlertFuncEx(ADC_DRDY, adcCaptureFun, pfuncData);
-
-      /* while loop for checking temp and adc each 100 ms */
-      uint32_t curTick, preTick;
-      uint32_t preDatTick = 0;
-      int ratioIdx = 0, capIdx = 0;
-      float ratioArray[20];
-      preTick = curTick = gpioTick(); 
-      while(/*!kbhit()*/pfuncData->isRun == 1 && count < 24)
-      {
-         //if((curTick - preTick) >= 100000)
-         //cnstRlts.dataCnt;
-         if(pfuncData->datIdx > 23)
+         /* calculate data */
+         int32_t fx1 = 0,fy1 = 0, fx2 = 0, fy2 = 0, maxDtick = 0, curTick;
+         double df1, df2, v1, v2, v3, v4, step;
+         
+         for(int n = 1; n < numSamples; n++)
          {
-            pfuncData->isRun = 0;
-            /* get temperature */              
-            //char *pargu1 = "mtd415Set";
-            //char argu2[32] = "tecCmd"; 
-            char argu3[32] = "get temperature";
-            //char *presult;
-         
-            presult = tempCtrll_py(3, mtd415, mtd415getFunc, &argu3[0]);
-            printf("\r     temperature is %s.\r\n", presult);
-
-            /* calculate data */
-            int32_t fx1 = 0,fy1 = 0, fx2 = 0, fy2 = 0, maxDtick = 0, curTick;
-            double df1, df2, v1, v2, v3, v4, step;
-            
-            for(int n = 2; n < 22; n++)
-            {
-               fx1 += (pfuncData->pRslts + n)->results0;
-               fy1 += (pfuncData->pRslts + n)->results1;
-               fx2 += (pfuncData->pRslts + n)->results2;
-               fy2 += (pfuncData->pRslts + n)->results3;
-               if(n > 3)
-                  curTick = (pfuncData->pRslts + n)->tick - (pfuncData->pRslts + (n - 1))->tick;
-               maxDtick = (maxDtick > curTick) ? maxDtick:curTick;
-            }
-
-            fx1 /= 20; fy1 /= 20; fx2 /= 20; fy2 /= 20;
-            
-            /* convert to voltage */
-            //int count = 0, countf = 0;
-               
-            #if 1  //TODO - rm following code 
-            uint32_t ticksSum = 0;
-
-            if(fx1 > 0x7fffff) //adcData.channel0
-            {
-               v1 = (double)(~(fx1 | 0xff000000)+1);
-               v1 = -v1;
-            }
-            else
-            {
-               v1 = (double)fx1;
-            }
-
-            if(fy1 > 0x7fffff) //adcData.channel1
-            {
-               v2 = (double)(~(fy1 | 0xff000000)+1);
-               v2 = -v2;
-            }
-            else
-            {
-               v2 = (double)fy1;
-            }
-            
-            if(fx2 > 0x7fffff) //adcData.channel2
-            {
-               v3 = (double)(~(fx2 | 0xff000000)+1);
-               v3 = -v3;
-            }
-            else
-            {
-               v3 = (double)fx2;
-            }
-            
-            if(fy2 > 0x7fffff) //adcData.channel3
-            {
-               v4 = (double)(~(fy2 | 0xff000000)+1);
-               v4 = -v4;
-            }
-            else
-            {
-               v4 = (double)fy2;
-            }
-            #endif //TODO end
-
-            step = 1200000.0 / 8388607.0;
-
-            v1 *= step;
-            v2 *= step;
-            v3 *= step;
-            v4 *= step;
-            
-            df1 = v1*v1 + v2*v2;
-            df2 = v3*v3 + v4*v4;
-
-            df1 = sqrt(df1);
-            df2 = sqrt(df2);
-
-            curTick = gpioTick();
-
-            capIdx = cnstRlts.dataCnt = count;
-            
-            capIdx = capIdx%20;
-            cnstRlts.dataCnt = capIdx;
-            if(df2 != 0.0)
-            {
-               //n = (n+1)%20;
-               //cnstRlts.dataCnt = n;
-
-               cnstRlts.Rslt[capIdx].squF1 = df1;
-               cnstRlts.Rslt[capIdx].squF2 = df2;
-               ratioArray[capIdx] = cnstRlts.Rslt[capIdx].ratio = df1/df2;
-               //printf("     lasting %d max-dalt %d; result %.4f, %.4f and ratio %.4f\n\r", (curTick - preTick), maxDtick, df1, df2, df1/df2);
-               printf("     result %.4f, %.4f and ratio %.4f\n\r", df1, df2, df1/df2);
-            }
-            else
-            {
-               printf("    dF2 is zero. %.4f, %.4f", df1, df2);
-            }
-            //printf("    (%d): %.02f, %.02f, %.2f, %.2f\n\r", count, v1, v2, v3, v4);
-         
-            /* renew the data buffer */
-            pfuncData->datIdx = 0;
-            pfuncData->isRun = 1;
-            curTick = preTick = gpioTick();
-            count++;
-            //}
-
-            /* end of convert */
-            
-            /* output data */
-            printf("\r    Time lasting in Samples: %d - %d -- %d\n\r", (pfuncData->pRslts + 2)->tick,
-            (pfuncData->pRslts + 21)->tick,
-            (pfuncData->pRslts + 21)->tick - (pfuncData->pRslts + 2)->tick);
-
-            //curTick = gpioTick();
+            fx1 += (pfuncData->pRslts + n)->results0;
+            fy1 += (pfuncData->pRslts + n)->results1;
+            fx2 += (pfuncData->pRslts + n)->results2;
+            fy2 += (pfuncData->pRslts + n)->results3;
+            if(n > 2) //find maxium interval of the sampling - TODO touble check
+               curTick = (pfuncData->pRslts + n)->tick - (pfuncData->pRslts + (n - 1))->tick;
+            maxDtick = (maxDtick > curTick) ? maxDtick:curTick;
          }
-         //if(kbhit())
-         //{
-         //   pfuncData->isRun = 0;
-         //   break;
+
+         //fx1 /= 20; fy1 /= 20; fx2 /= 20; fy2 /= 20;
+         fx1 /= numSamples; fy1 /= numSamples; fx2 /= numSamples; fy2 /= numSamples;
+         
+         /* convert to voltage */
+         #if 1  //TODO - rm following code ???
+         uint32_t ticksSum = 0;
+
+         if(fx1 > 0x7fffff) //adcData.channel0
+         {
+            v1 = (double)(~(fx1 | 0xff000000)+1);
+            v1 = -v1;
+         }
+         else
+         {
+            v1 = (double)fx1;
+         }
+
+         if(fy1 > 0x7fffff) //adcData.channel1
+         {
+            v2 = (double)(~(fy1 | 0xff000000)+1);
+            v2 = -v2;
+         }
+         else
+         {
+            v2 = (double)fy1;
+         }
+         
+         if(fx2 > 0x7fffff) //adcData.channel2
+         {
+            v3 = (double)(~(fx2 | 0xff000000)+1);
+            v3 = -v3;
+         }
+         else
+         {
+            v3 = (double)fx2;
+         }
+         
+         if(fy2 > 0x7fffff) //adcData.channel3
+         {
+            v4 = (double)(~(fy2 | 0xff000000)+1);
+            v4 = -v4;
+         }
+         else
+         {
+            v4 = (double)fy2;
+         }
+         #endif //TODO end
+
+         step = 1200000.0 / 8388607.0;
+
+         v1 *= step;
+         v2 *= step;
+         v3 *= step;
+         v4 *= step;
+         
+         df1 = v1*v1 + v2*v2;
+         df2 = v3*v3 + v4*v4;
+
+         df1 = sqrt(df1);
+         df2 = sqrt(df2);
+
+         /* TODO - check it */
+         //curTick = gpioTick();
+         //capIdx = cnstRlts.dataCnt = count
+         //capIdx = capIdx%20;
+         //cnstRlts.dataCnt = capIdx;
+         
+         if(df2 != 0.0)
+         {
+            //n = (n+1)%20;
+            //cnstRlts.dataCnt = n;
+
+            //cnstRlts.Rslt[capIdx].squF1 = df1;
+            //cnstRlts.Rslt[capIdx].squF2 = df2;
+            ratioArray[capIdx] = cnstRlts.Rslt[capIdx].ratio = df1/df2;
+            // TODO - debugging
+            avgRatio = ratioArray[capIdx];
+
+            //printf("     lasting %d max-dalt %d; result %.4f, %.4f and ratio %.4f\n\r", (curTick - preTick), maxDtick, df1, df2, df1/df2);
+            //printf("     result %.4f, %.4f and ratio %.4f\n\r", df1, df2, df1/df2);
+         }
+         else
+         {
+            printf("    dF2 is zero. %.4f, %.4f", df1, df2);
+         }
+         //printf("    (%d): %.02f, %.02f, %.2f, %.2f\n\r", count, v1, v2, v3, v4);
+      
+         /* renew the data buffer */
+         pfuncData->datIdx = 0;
+         //pfuncData->isRun = 1;
+         curTick = preTick = gpioTick();
+         //count++;
+      
+      
          //}
-      }
 
-      /* any keyboard press ends the loop */
-      //printf(" ");
-      //scanf("%s", command);
+         /* end of convert */
+         
+         /* output data */
+         //printf("\r    Time lasting in Samples: %d - %d -- %d\n\r", (pfuncData->pRslts + 2)->tick,
+         //(pfuncData->pRslts + 21)->tick,
+         //(pfuncData->pRslts + 21)->tick - (pfuncData->pRslts + 2)->tick);
 
-      pfuncData->isRun = 0;
-      
-      //endwin(); //end ncurses
-
-      /* check the capture data */
-      printf("\n\n    Calculating Constant.\n     Input the gas concentration: ");
-      float cnstRlt = 0, samplePercent = 0, avgRatio = 0;
-      samplePercent = 0; avgRatio = 0;
-      scanf("%f", &samplePercent);
-
-      for(ratioIdx = 0; ratioIdx < 20; ratioIdx++)
-      {
-         avgRatio += ratioArray[ratioIdx];
-         //printf("     debug (%d)) %.4f, %.4f\n", ratioIdx, ratioArray[ratioIdx], avgRatio);
-      }
-      
-      if(avgRatio == 0)
-      {
-         printf("the ratio is zero!\n");
+         //curTick = gpioTick();
       }
       else{
-         printf("    totalRatio %.4f; numbers %d\n", avgRatio, ratioIdx);
-         avgRatio /= ratioIdx;
-         cnstRlt = samplePercent/avgRatio;
-         printf("\n     Average Ration %.4f; concentration %.4f The contant is %.4f. \n", 
-               avgRatio, samplePercent, cnstRlt);
+         avgRatio = 0;
       }
+      #endif //end of for debugging
+      //if(kbhit())
+      //{
+      //   pfuncData->isRun = 0;
+      //   break;
+      //}
+   }
 
+   /* save data in a file */
+   // save date and time in file
 
-      /* save data in a file */
-      // save date and time in file
-
-      // save current constant in file TODO save result into a file
-      //fprintf(fh, "Gas Concentration: %.4f, Constant: %.4f, AvgRatio: %.4f\n", samplePercent, cnstRlt, avgRatio);
+   // save current constant in file TODO save result into a file
+   //fprintf(fh, "Gas Concentration: %.4f, Constant: %.4f, AvgRatio: %.4f\n", samplePercent, cnstRlt, avgRatio);
    #endif
-   return 0.5; //avgRatio;
+
+   return avgRatio;
 }
 
 
