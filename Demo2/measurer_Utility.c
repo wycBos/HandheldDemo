@@ -185,7 +185,7 @@ float getLSRatio(userData* pfuncData) //TODO - place userData by measThr.
       int numSamples = pfuncData->datIdx;
       //printf("    number of samples %d.\n", numSamples);
       #if 1 //for debugging
-      if(numSamples > 15){
+      if(numSamples > 10){
 
          /* calculate data */
          int32_t fx1 = 0,fy1 = 0, fx2 = 0, fy2 = 0, maxDtick = 0, curTick;

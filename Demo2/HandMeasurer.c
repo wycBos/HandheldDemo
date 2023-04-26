@@ -884,7 +884,17 @@ void *start_loop_thread(void *arg)
  *    measuring value.
  *    ADC state
  * 
- * **************************************************/ 
+ * **************************************************/
+typedef struct ThreadDbg_t
+{
+	int inumData[32];
+	int count[32];
+	float fRatio[32];
+	uint32_t u32tickDbg[32];
+	float f1[32];
+	float f2[32];
+}thrDbg;
+thrDbg gasDbg;
 void *dev_gasMeasure_thread(void *arg)
 {
 	const uint32_t LSRatioTiming = 100000; //100ms
@@ -927,23 +937,32 @@ void *dev_gasMeasure_thread(void *arg)
 			{
 				//calculate ADC intput ration, capturing adc is opened.
 				pthread_mutex_lock(&pmtx_funcData);
+				int numdataPre = pcapFuncData->datIdx;
+				pcapFuncData->isRun = 0;
 				rsltRatio = getLSRatio(pcapFuncData); // TODO creat routine in utility file.
+				int numdataPos = pcapFuncData->datIdx;
+				pcapFuncData->isRun = 1;
+				pthread_mutex_unlock(&pmtx_funcData);
 				
 				/* check pcapFuncData -debugging */
 				//printf(" funcData: %d, %.4f\n", pcapFuncData->datIdx, (pcapFuncData->pRslts + 4)->results1);
-				pthread_mutex_unlock(&pmtx_funcData);
+
 				
 				//debug code
-				tickDbg[dbgIdx] = curTick;
-				ratioArry[dbgIdx] = rsltRatio;
-				dbgIdx = (dbgIdx + 1)%10;
-				if(!dbgIdx)
+				gasDbg.u32tickDbg[dbgIdx] = curTick;
+				gasDbg.fRatio[dbgIdx] = rsltRatio;
+				gasDbg.inumData[dbgIdx] = numdataPre;
+				gasDbg.count[dbgIdx] = dbgIdx;
+				int idx = dbgIdx;
+				dbgIdx = (dbgIdx + 1)%16;
+				if(0&&numdataPre > 10)
 				{
-					for(int idx = 0; idx < 10; idx++)
+				//	for(int idx = 0; idx < 10; idx++)
 					{
-						printf(" Ratio: %d, %.4f\n", tickDbg[idx], ratioArry[idx]);
+						printf(" Ratio: %d, %.4f, %d\n", gasDbg.u32tickDbg[idx], 
+							gasDbg.fRatio[idx], gasDbg.inumData[idx]);
 					}
-					printf("\n");
+				//	printf("\n");
 					//printf("    tick_delta: %d, %.4f\n", curTick, rslt);
 				}
 			}
@@ -968,11 +987,12 @@ void *dev_gasMeasure_thread(void *arg)
 			pthread_mutex_unlock(&pmtx_mData);
 			
 			//printf("gasMea dist - %f, %d, %d\n", dis, current_sec, LSDisTiming);//never need!!!
-			//for(int idx = 0; idx < 8; idx++)
-			//{
-			//	printf("%d, ", tickDbg[idx]);
-			//}
-			//printf("\n");
+			for(int idx = 0; idx < 16; idx++)
+			{
+				printf(" gasData: %d, %.4f, %d\n", gasDbg.u32tickDbg[idx], 
+							gasDbg.fRatio[idx], gasDbg.inumData[idx]);
+			}
+			printf("\n");
 			
 		}
 		switch (OpMode)
