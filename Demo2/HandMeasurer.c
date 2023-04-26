@@ -903,7 +903,7 @@ void *dev_gasMeasure_thread(void *arg)
 	measData *plmData = (measData *)arg;
 	float dis, rsltRatio, ratioArry[32];
 	uint32_t curTick, preTick, tickDbg[32];
-	int dbgIdx = 0, LSDisTiming = 10; //10s
+	int dbgIdx = 0, cntIn = 0, LSDisTiming = 10, lIdx; //10s
 	preTick = curTick = gpioTick();
 	userData *pcapFuncData = &adcCapFuncData; //TODO - it is first definition here?
 
@@ -946,21 +946,19 @@ void *dev_gasMeasure_thread(void *arg)
 				
 				/* check pcapFuncData -debugging */
 				//printf(" funcData: %d, %.4f\n", pcapFuncData->datIdx, (pcapFuncData->pRslts + 4)->results1);
-
-				
-				//debug code
-				gasDbg.u32tickDbg[dbgIdx] = curTick;
-				gasDbg.fRatio[dbgIdx] = rsltRatio;
-				gasDbg.inumData[dbgIdx] = numdataPre;
-				gasDbg.count[dbgIdx] = dbgIdx;
-				int idx = dbgIdx;
-				dbgIdx = (dbgIdx + 1)%16;
-				if(0&&numdataPre > 10)
+				cntIn++;
+				if(numdataPre > 10)
 				{
-				//	for(int idx = 0; idx < 10; idx++)
+					gasDbg.u32tickDbg[dbgIdx] = curTick;
+					gasDbg.fRatio[dbgIdx] = rsltRatio;
+					gasDbg.inumData[dbgIdx] = numdataPre;
+					gasDbg.count[dbgIdx] = dbgIdx;
+					lIdx = dbgIdx;
+					dbgIdx = (dbgIdx + 1)%16;
+					if(0)
 					{
-						printf(" Ratio: %d, %.4f, %d\n", gasDbg.u32tickDbg[idx], 
-							gasDbg.fRatio[idx], gasDbg.inumData[idx]);
+						printf(" Ratio(%d): %d, %.4f, %d\n", cntIn, gasDbg.u32tickDbg[lIdx], 
+							gasDbg.fRatio[lIdx], gasDbg.inumData[lIdx]);
 					}
 				//	printf("\n");
 					//printf("    tick_delta: %d, %.4f\n", curTick, rslt);
@@ -992,7 +990,8 @@ void *dev_gasMeasure_thread(void *arg)
 				printf(" gasData: %d, %.4f, %d\n", gasDbg.u32tickDbg[idx], 
 							gasDbg.fRatio[idx], gasDbg.inumData[idx]);
 			}
-			printf("\n");
+			printf("count value - %d)\n", cntIn);
+			cntIn = 0;
 			
 		}
 		switch (OpMode)
