@@ -9,7 +9,6 @@ it is retrived from lg_ads1x15 in lg ligrary.
 #include <pigpio.h>
 #include "ADS1x15.h"
 
-<<<<<<< HEAD
 float _GAIN[] =
     {6.144, 4.096, 2.048, 1.024, 0.512, 0.256, 0.256, 0.256};
 
@@ -17,15 +16,6 @@ const char *_CHAN[] =
     {"A0-A1", "A0-A3", "A1-A3", "A2-A3", "A0", "A1", "A2", "A3"};
 
 int _SPS_1115[] = {8, 16, 32, 64, 128, 250, 475, 860};
-=======
-float _GAIN[]=
-   {6.144, 4.096, 2.048, 1.024, 0.512, 0.256, 0.256, 0.256};
-
-const char *_CHAN[]=
-   {"A0-A1", "A0-A3", "A1-A3", "A2-A3", "A0", "A1", "A2", "A3"};
-
-int _SPS_1115[]={  8,  16,  32,  64,  128,  250,  475,  860};
->>>>>>> 7c353dab08a8d9562023200249c01660212605a9
 
 ads1x15_p adc;
 /* basic routines */
@@ -342,7 +332,6 @@ float ADS1115_main(void)
 
    float ADvolt = 0;
 #if 1
-<<<<<<< HEAD
    if (1 /*|!gpio_initlized*/) // pigpio re-init
    {
       // printf("init pre-. \n");
@@ -356,37 +345,17 @@ float ADS1115_main(void)
 
    adc = ADS1115_open(0, 1, 0x48, 0);
    if (adc == NULL)
-=======
-   if(1/*|!gpio_initlized*/) //pigpio re-init
-   {
-      //printf("init pre-. \n");
-      if (gpioInitialise() < 0) 
-      {
-         //printf("init error. \n");
-         return 1;
-      }
-   }
-   //printf("pigpio initialized. \n");
-
-   adc = ADS1115_open(0, 1, 0x48, 0);
-   if (adc == NULL) 
->>>>>>> 7c353dab08a8d9562023200249c01660212605a9
    {
       printf("ADS closed. \n");
       return -2;
    }
-<<<<<<< HEAD
    // printf("ADS1115 start. \n");
-=======
-   //printf("ADS1115 start. \n");
->>>>>>> 7c353dab08a8d9562023200249c01660212605a9
    ADS1X15_set_channel(adc, ADS1X15_A0);
    ADS1X15_set_voltage_range(adc, 3.3);
    ADS1X15_set_sample_rate(adc, 0); // set minimum sampling rate
 
    if (0 /*(ALERT >= 0*/) /* ALERT pin connected */
    {
-<<<<<<< HEAD
       // h = lgGpiochipOpen(0);
 
       // if (h <0) return -3;
@@ -401,22 +370,6 @@ float ADS1115_main(void)
    ADvolt = ADS1X15_read_voltage(adc);
 
    // printf("re-%.2f\n", ADvolt /*ADS1X15_read_voltage(adc)*/);
-=======
-      //h = lgGpiochipOpen(0);
-
-      //if (h <0) return -3;
-
-      /* got a handle, now open the GPIO for alerts */
-      //err = lgGpioClaimAlert(h, 0, LG_BOTH_EDGES, ALERT, -1);
-      //if (err < 0) return -4;
-      //lgGpioSetAlertsFunc(h, ALERT, cbf, adc);
-   }
-#endif
-   //printf("ADS1115 read. \n");
-   ADvolt = ADS1X15_read_voltage(adc);
-
-   //printf("re-%.2f\n", ADvolt /*ADS1X15_read_voltage(adc)*/);
->>>>>>> 7c353dab08a8d9562023200249c01660212605a9
 
    ADS1X15_close(adc);
    return ADvolt;
