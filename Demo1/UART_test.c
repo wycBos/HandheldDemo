@@ -51,7 +51,7 @@ float UART_main()
     if((fd = serialOpen("/dev/serial0",9600)) < 0)return 1;
 //    if((fd = serialOpen("/dev/ttyAMA0",115200)) < 0)return 1;
 //    serialFlush(fd);
-    printf("serial test start ...\n");
+    //printf("serial test start ...\n");
 
     serialPrintf(fd,contimeas);
     
@@ -79,7 +79,7 @@ float UART_main()
                 Check=Check+data[i];
             }
             Check=~Check+1;
-            printf("%x \n" ,Check);
+            //printf("%x \n" ,Check);
             if(data[10]==Check)
             {
                 if(data[3]=='E'&&data[4]=='R'&&data[5]=='R')
@@ -92,9 +92,9 @@ float UART_main()
                     , data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9], data[10]);
                 distance=0;
                 distance=(data[3]-0x30)*100+(data[4]-0x30)*10+(data[5]-0x30)*1+(data[7]-0x30)*0.1+(data[8]-0x30)*0.01+(data[9]-0x30)*0.001;
-                printf("Distance = ");
-                printf("%5.1f",distance);
-                printf(" m\n");
+                //printf("Distance = ");
+                //printf("%5.1f",distance);
+                //printf(" m\n");
                 }
             }
             else

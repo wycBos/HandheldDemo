@@ -12,8 +12,12 @@
         "stdexcept": "c",
         "system_error": "c",
         "typeinfo": "c",
+<<<<<<< HEAD
         "pigpio.h": "c",
         "time.h": "c",
         "limits": "c"
+=======
+        "pycapsule.h": "c"
+>>>>>>> 7c353dab08a8d9562023200249c01660212605a9
     }
 }
