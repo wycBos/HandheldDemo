@@ -28,6 +28,12 @@
 #define TEMPCTRL   1
 #define BTSTRINGS  32
 
+#define SERBAUD       9600
+#define SERBAUD115    115200
+#define SLE_LDIS      0
+#define SLE_TMPC      1
+#define SER_SEL       1
+
 #define LASER_ADDRESS     0x80
  
 /* pre-command processing */
@@ -107,7 +113,7 @@ typedef struct portUART_t{ // UART module
 /* serial operations functions */
 //void UART_distMain(int isConti);
 //void UART_tempCMain(int isConti);
-void tempCtrll_py(int argc, char *argv1, char *argv2, char *argv3);
+//const char *tempCtrll_py(int argc, char *argv1, char *argv2, char *argv3);
 
 int uart_start(int chan, UARTport* uart);
 int uart_close(int SERHandle, UARTport* uart);

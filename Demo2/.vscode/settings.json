@@ -19,6 +19,11 @@
         "array": "c",
         "ranges": "c",
         "cmath": "c",
-        "random": "c"
+        "random": "c",
+        "cstdlib": "c",
+        "chrono": "c",
+        "numeric": "c",
+        "ratio": "c",
+        "cinttypes": "c"
     }
 }
