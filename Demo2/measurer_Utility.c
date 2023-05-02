@@ -149,11 +149,39 @@ int gasMeasStart() //for ADS131
    return hd;
 }
 
+int gasMeasClose() //for ADS131
+{
+   int ret, hd;
+   //regInfor *pregInf;
+   //adc_channel_data *padcData; // TODO check where it is definced(DONE).
+   regInfor *pregInf = &regSetInf;
+   adc_channel_data *padcData = &adcData;
+   userData* pfuncData = &adcCapFuncData;
+   
+   /* close the ads131 chip */
+   gpioSetAlertFuncEx(ADC_DRDY, NULL, pfuncData);
+   pfuncData->datIdx = 0;
+   pfuncData->isRun = 0;
+
+   pfuncData->pRslts = &adcRltData[0];
+   pfuncData->handle = hd;
+   
+   ret = tspi_ads131m04_close(hd);
+   return ret;
+}
+
 /* old ratio function */
-// data used in the getLSRatio
-char *mtd415 = "mtd415Set";
-char *mtd415setFunc = "tecCmdset";
-char *mtd415getFunc = "tecCmdget";
+// data used in the getLSRatio, DONE - moved to UART_test.h
+char *mtd415 = "TecOps";
+char *mtd415setTempPoint = "setTempPoint";
+char *mtd415setCurrentlimt = "setCurrentLimit";
+char *mtd415setPGain = "setPGain";
+char *mtd415setDGain = "setDGain";
+char *mtd415setIGain = "setIGain";
+
+char *mtd415getTemperture = "getTempture";
+char *mtd415getCurrent = "getCurrent";
+char *mtd41paraSave = "paraSave";
 
 float getLSRatio(userData* pfuncData) //TODO - place userData by measThr.
 {
@@ -344,11 +372,10 @@ float getLSRatio(userData* pfuncData) //TODO - place userData by measThr.
 				
 const char *tempCtrll_py(int argc, char *argv1, char *argv2, char *argv3)
 {
-   char resultStr[32], *presultStr = &resultStr[0];
-#if 0 //for debug
+   //char resultStr[32], *presultStr = &resultStr[0];
 	PyObject *pName, *pModule, *pDict, *pFunc, *pValue, *pmyresult, *args, *kwargs;
 	int i;
-	char resultStr[32], *presultStr = &resultStr;
+	char resultStr[32], *presultStr = &resultStr[0];
 
     //gpioSetMode(SER_SEL, PI_OUTPUT);
 	gpioWrite(SER_SEL, SLE_TMPC); // select temperature controler
@@ -359,7 +386,7 @@ const char *tempCtrll_py(int argc, char *argv1, char *argv2, char *argv3)
 	//printf("PATH: %s\n", getenv("PATH"));
 	//printf("PYTHONPATH: %s\n", getenv("PYTHONPATH"));
 	//printf("in the ctrl_py(%d):\n\r   %s\n\r   %s\n\r   %s\n\r", argc, argv1, argv2, argv3);
-	//return;
+	//return; //the code is passed here - DONE
 
 	wchar_t *program = Py_DecodeLocale(argv1, NULL);
 	if (program == NULL)
@@ -402,27 +429,31 @@ const char *tempCtrll_py(int argc, char *argv1, char *argv2, char *argv3)
 	}
 	if(strcmp("null", argv3))
 	{
-		//printf("the argv3 is not null. %s\n\r", argv3);
-		args = PyTuple_Pack(1,PyUnicode_DecodeFSDefault(argv3));
+		printf("the argv3 is not null. %s\n\r", argv3);
+		//args = PyTuple_Pack(1,PyUnicode_DecodeFSDefault(argv3));
 	}
-		args = PyTuple_Pack(1,PyUnicode_DecodeFSDefault(argv3));
-	// kwargs = PyTuple_Pack(2,PyUnicode_DecodeFSDefault(argv5), PyUnicode_DecodeFSDefault(argv6));
-	// args = Py_BuildValue("ssss", argv5, argv3, argv6, argv4);
-	// kwargs = Py_BuildValue("ss", argv5, argv6);
+	args = PyTuple_Pack(1,PyUnicode_DecodeFSDefault(argv3));
 
 	if (PyCallable_Check(pFunc))
 	{
 		if(strcmp("null", argv3))
+      {
+         //printf("the argv3 is %s.\n\r", argv3);
 			pmyresult = PyObject_CallObject(pFunc, args/*NULL*/);
+
+      }
 		else
-			pmyresult = PyObject_CallObject(pFunc, NULL);
+      {
+         //printf("the argv3 is %s.\n\r", argv3);
+      	pmyresult = PyObject_CallObject(pFunc, NULL);
+      }  
 		i = 0;
 	}
 	else
 	{
 		PyErr_Print();
 		i = 1;
-		return;
+		return "err0\n";
 
 	}
 	PyUnicode_CheckExact(pmyresult);
@@ -449,7 +480,7 @@ const char *tempCtrll_py(int argc, char *argv1, char *argv2, char *argv3)
 		else
 		{
 			printf("in the ctrl_py\n");
-			return;
+			return "err2\n";
 			// TODO: Handle encoding error.
 		}
 	}
@@ -463,14 +494,24 @@ const char *tempCtrll_py(int argc, char *argv1, char *argv2, char *argv3)
 
 	// Finish the Python Interpreter
 	Py_Finalize();
-
+   //gpioSleep(PI_TIME_RELATIVE, 2, 0);
 	//gpioWrite(SER_SEL, SLE_LDIS); // set low (borrow SLE_LDIS)
 
 	return presultStr;
-#endif
-   return presultStr;
 }
+#if 0
+/* files operations */
+void *getParas(FILE *fh)
+{
+   char *dataIn = NULL;
+   size_t lenth = 0;
+   int readin;
 
-
-
+   while((readin = getline(&dataIn, &lenth, fh)) != -1)
+   {
+      printf("Reading the line with length = %d.\n", readin);
+      printf("%s", dataIn);
+   }
+}
+#endif
 
