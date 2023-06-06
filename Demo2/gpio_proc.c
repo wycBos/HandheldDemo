@@ -913,7 +913,7 @@ void uart_preExch(UARTport *pUart, SERCmdMsg *cmdMsg)
 	int i;
 
 	/* prepare uart */
-	printf("tx length %d \n", lnumbytes + 1);
+	//printf("tx length %d \n", lnumbytes + 1);
 
 	for (i = 0; i < lnumbytes; i++)
 	{
@@ -1111,7 +1111,7 @@ int uart_read(UARTport *pUart, int byteCnt)
 	else
 		numbyte = byteCnt;
 
-	// if(numbyte >= lreqnm)
+	if(numbyte > 0)
 	{
 		/* read data */
 		receiveCnt = serRead(hd, pUart->pRxbuf, numbyte);

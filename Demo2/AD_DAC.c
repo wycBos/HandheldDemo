@@ -4,7 +4,7 @@
  * The pigpio ISP & I2C routines support the read/write with such chips.
  *************************
  *
-*/
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -391,11 +391,11 @@ float ADS1115_main(void)
 /***********************************************************
  * The routines are following supprt the MCP4822 and ADS131m04.
  * The used bus is SPI supported by pigpio.
- * 
+ *
  * *********************************************************
- * 
+ *
  */
- 
+
 /* TODO - add routines for MCP4822 and ADS131 */
 
 /* The routines for MCP4822 */
@@ -416,26 +416,29 @@ float ADS1115_main(void)
 ***************************************************************************
 */
 
-void tspi_mcp4822(int channel, int command, double valu) // SPI channel test MCP4822
+void tspi_mcp4822(int channel, int command, double value, double prevalue) // SPI channel test MCP4822
 {
    /**********************************
     *  channel: 0-DAC_A; 1-DAC_B
     *  command: 0-DIS_ACT, 1-EN_ACT, 2-LDAC
-    *  valu: 0 - 2
+    *  value: 0.0 - 2.0
     *************************************/
+
+   //printf("    MCP4822 Settings. %d %d %f\n", channel, command, value);
+   //return; // for debug
 
    int h, b, e;
    char txBuf[8];
 
-   printf("    MCP4822 Settings. %d %d %f\n", channel, command, valu);
+   printf("    MCP4822 Settings. %d %d %f\n", channel, command, value);
 
    /* set the DAC_LDAC command 2 DAC_LDAC is high, otherwise it is low*/
-   gpioSetMode(DAC_LDAC, PI_OUTPUT); //TODO - move to main()
-   
-   //if (command == 2)
-   //   gpioWrite(DAC_LDAC, 1);
-   //else
-   //   gpioWrite(DAC_LDAC, 0);
+   gpioSetMode(DAC_LDAC, PI_OUTPUT); // TODO - move to main()
+
+   // if (command == 2)
+   //    gpioWrite(DAC_LDAC, 1);
+   // else
+   //    gpioWrite(DAC_LDAC, 0);
 
    /* this test requires a MCP4822 on SPI channel 1 */
    /*
@@ -460,8 +463,9 @@ void tspi_mcp4822(int channel, int command, double valu) // SPI channel test MCP
    *
    */
 
-   h = spiOpen(1, 1250000, 0); // open SPI decice "/dev/spidev0.1" with mode 0 for MCP4822
-   //CHECK(12, 1, h, 4, 100, "spiOpenDAC");
+   // h = spiOpen(1, 1250000, 0); // open SPI decice "/dev/spidev0.1" with mode 0 for MCP4822
+   h = spiOpen(1, 4000000, 0); // open SPI decice "/dev/spidev0.1" with mode 0 for MCP4822
+   // CHECK(12, 1, h, 4, 100, "spiOpenDAC");
    printf("    DAC - %d\n", h);
 
    /* set SPI device command e.g MCP4822 */
@@ -478,22 +482,33 @@ void tspi_mcp4822(int channel, int command, double valu) // SPI channel test MCP
     *******************************************************************
     *
     */
-   unsigned int numSteps, remainVal, valuSet, ctrlData, setValue;
+   unsigned int numSteps, remainVal, valuSet, StepsPre, prevlSet, ctrlData, setValue;
    char byte0, byte1;
 
    /* set MCP4822 value */
-   if (valu < 0 && valu > 2.048)
-      valu = 1.0;
+   if (value < 0 && value > 2.048)
+      value = 1.0;
 
-   valuSet = (unsigned int)(valu / 2.048 * 4096);
+   /* prepare numbers for setting */
+   if(prevalue < 0 || prevalue > 2.048)
+   {
+      StepsPre = 0;
+   }
+   else{
+      prevlSet = (unsigned int)(prevalue / 2.048 * 4096);
+      StepsPre = prevlSet/10;
+   }
+
+   valuSet = (unsigned int)(value / 2.048 * 4096);
    /* setting DAC_A value from 0 to set value with increacing 10 digital number per 20ms */
-   numSteps = valuSet/10; remainVal = valuSet%10;
+   numSteps = valuSet / 10;
+   remainVal = valuSet % 10;
 
    /* set MCP4822 control bits */
    ctrlData = MCP4822_GA1;
    if (channel == 1)
       ctrlData |= MCP4822_DAB; // set DA-B
-   else if(channel == 0)
+   else if (channel == 0)
       ctrlData &= (~MCP4822_DAB); // set DA-A
 
    if (command == 0)
@@ -502,36 +517,62 @@ void tspi_mcp4822(int channel, int command, double valu) // SPI channel test MCP
       ctrlData |= MCP4822_ACT; // set DA activite
 
    /* set DAC value */
-   if(channel == 0) //DAC_A
+   if (channel == 0) // DAC_A
    {
       printf("    MCP4822 CH_A steps. %d\n", numSteps);
-      for(int n = 0; n < numSteps; n++)
+
+      if(numSteps > StepsPre)
       {
-         setValue = ctrlData + n*10;
-         //printf("    MCP4822 Data. %d\n", setValue);
+         for(int n = StepsPre; n < numSteps + 1; n++)
+         {
+            setValue = ctrlData + n*10;
+            //printf("    MCP4822 Data. %d\n", setValue);
 
-         byte0 = setValue & 0xFF;
-         byte1 = (setValue >> 8) & 0xFF;
+            byte0 = setValue & 0xFF;
+            byte1 = (setValue >> 8) & 0xFF;
 
-         txBuf[1] = byte0;
-         txBuf[0] = byte1;
-         // sprintf(txBuf, "\x01\x80");
-         //printf("MCP4822 Data. %x %x %x\n", setValue, txBuf[1], txBuf[0]);
+            txBuf[1] = byte0;
+            txBuf[0] = byte1;
+            //printf("MCP4822 Data. %x %x %x\n", setValue, txBuf[1], txBuf[0]);
 
-         /* write data to SPI */
-         b = spiWrite(h, txBuf, 2);
-         //CHECK(12, 2, b, 2, 0, "spiWrie");
+            /* write data to SPI */
+            b = spiWrite(h, txBuf, 2);
 
-         /* latch data to DAC */
-         gpioWrite(DAC_LDAC, 0);
-         gpioDelay(400);
-         gpioWrite(DAC_LDAC, 1);
-         gpioDelay(20000); // delay 20ms
+            /* latch data to DAC */
+            gpioWrite(DAC_LDAC, 0);
+            gpioDelay(400);
+            gpioWrite(DAC_LDAC, 1);
+            gpioDelay(20000); // delay 20ms
+         }
+      }else if(numSteps < StepsPre)
+      {
+         for(int n = 0; n < (StepsPre - numSteps + 1); n++)
+         {
+            setValue = ctrlData + (StepsPre - n)*10;
+            //printf("    MCP4822 Data. %d\n", setValue);
+
+            byte0 = setValue & 0xFF;
+            byte1 = (setValue >> 8) & 0xFF;
+
+            txBuf[1] = byte0;
+            txBuf[0] = byte1;
+            //printf("MCP4822 Data. %x %x %x\n", setValue, txBuf[1], txBuf[0]);
+
+            /* write data to SPI */
+            b = spiWrite(h, txBuf, 2);
+            
+            /* latch data to DAC */
+            gpioWrite(DAC_LDAC, 0);
+            gpioDelay(400);
+            gpioWrite(DAC_LDAC, 1);
+            gpioDelay(20000); // delay 20ms
+         }
       }
+
    }
-//   else{ //DAC_B
-//
-//   }
+   //   else{ //DAC_B
+   //
+   //   }
    setValue = ctrlData + valuSet;
    printf("    MCP4822 Data. 0x%x\n", setValue);
 
@@ -540,33 +581,18 @@ void tspi_mcp4822(int channel, int command, double valu) // SPI channel test MCP
 
    txBuf[1] = byte0;
    txBuf[0] = byte1;
-   // sprintf(txBuf, "\x01\x80");
    //printf("MCP4822 Data. %x %x %x\n", setValue, txBuf[1], txBuf[0]);
 
    /* write data to SPI */
    b = spiWrite(h, txBuf, 2);
-   //CHECK(12, 2, b, 2, 0, "spiWrie");
 
    /* latch data to DAC */
    gpioWrite(DAC_LDAC, 0);
    gpioDelay(400);
    gpioWrite(DAC_LDAC, 1);
 
-   /*
-      for (x=0; x<5; x++)
-      {
-         b = spiXfer(h, txBuf, rxBuf, 3);
-         CHECK(12, 2, b, 3, 0, "spiXfer");
-         if (b == 3)
-         {
-            time_sleep(1.0);
-            printf("%d ", ((rxBuf[1]&0x0F)*256)|rxBuf[2]);
-         }
-      }
-   */
-
    e = spiClose(h);
-   //CHECK(12, 3, e, 0, 0, "spiClose");
+   // CHECK(12, 3, e, 0, 0, "spiClose");
 }
 
 /* The routines for ADS131M04 */
@@ -583,22 +609,23 @@ void tspi_mcp4822(int channel, int command, double valu) // SPI channel test MCP
 */
 
 adcRslts adcRltData[ADCLNTH];
-adc_channel_data adcData; // TODO double check it
 userData adcCapFuncData;
+adc_channel_data adcData; // TODO double check it
+avgData avgFlt;
 pthread_mutex_t pmtx_funcData;
 
 /********************** prototype ****************/
-void set_DAC() //TOTO - set MCP4822 output value
+void set_DAC() // TOTO - set MCP4822 output value
 {
    return;
 }
 
-void init_ADC() //TOTO - init/config ADS131
+void init_ADC() // TOTO - init/config ADS131
 {
    return;
 }
 
-void ADC_capture() //TOTO - run ADS131 value input, event handler
+void ADC_capture() // TOTO - run ADS131 value input, event handler
 {
    return;
 }
@@ -704,7 +731,7 @@ uint32_t combineBytes(const char dataBytes[], int numOfbyte)
 *                                                                          *
 ****************************************************************************
 */
-//TODO move into gpio_proc.c
+// TODO move into gpio_proc.c
 char txBuf[32] = {0};
 char rxBuf[32] = {0};
 
@@ -747,9 +774,9 @@ uint16_t sendCommand(int SPIHandle, uint16_t opcode, regInfor *regData, adc_chan
 
    // check the txBuf
 
-   //printf("\ntxBuf0 numberOfBytes %d: 0x%x, 0x%x, 0x%x, 0x%x; \n", numberOfBytes, txBuf[0], txBuf[1], txBuf[2], txBuf[3]);
+   // printf("\ntxBuf0 numberOfBytes %d: 0x%x, 0x%x, 0x%x, 0x%x; \n", numberOfBytes, txBuf[0], txBuf[1], txBuf[2], txBuf[3]);
 
-   //printf("txBuf1: 0x%x, 0x%x, 0x%x, 0x%x; \n", txBuf[4], txBuf[5], txBuf[6], txBuf[7]);
+   // printf("txBuf1: 0x%x, 0x%x, 0x%x, 0x%x; \n", txBuf[4], txBuf[5], txBuf[6], txBuf[7]);
 
    // Send the opcode (and crc word, if enabled)
    numberOfBytes = 18; // 3bytes*6words.
@@ -768,22 +795,22 @@ uint16_t sendCommand(int SPIHandle, uint16_t opcode, regInfor *regData, adc_chan
    DataStruct->channel3 = combineBytes(&rxBuf[12], 3);
    DataStruct->crc = (uint16_t)combineBytes(&rxBuf[15], 2);
 
-   return ret; //DataStruct->response;
+   return ret; // DataStruct->response;
 }
 
 uint16_t tspi_ads131m04_rd(int SPIhandler, regInfor *getInf)
 {
    uint16_t ret = 0, rsp;
    regInfor *lpgetInf = getInf;
-   adc_channel_data *lpadcData = &adcData;  //TODO - move into arguments of the function
+   adc_channel_data *lpadcData = &adcData; // TODO - move into arguments of the function
 
    /* reead ads131m04 register */
    // regSetInf.regAddr = getInf->regAddr;
    // regSetInf.setData = 0;
    ret = sendCommand(SPIhandler, OPCODE_RREG, lpgetInf, lpadcData);
    rsp = lpadcData->response;
-   
-   //printf("read Reg. addr - 0x%x, data - 0x%x. \n", getInf->regAddr, rsp);
+
+   // printf("read Reg. addr - 0x%x, data - 0x%x. \n", getInf->regAddr, rsp);
    return rsp;
 }
 
@@ -792,153 +819,171 @@ uint16_t tspi_ads131m04_wt(int SPIhandler, regInfor *setInf)
    uint16_t ret = 0, rsp;
    /* write ads131m04 register */
    regInfor *lpgetInf = setInf;
-   adc_channel_data *lpadcData = &adcData;  //TODO - move into arguments of function
+   adc_channel_data *lpadcData = &adcData; // TODO - move into arguments of function
 
    /* reead ads131m04 register */
    // regSetInf.regAddr = setInf->regAddr;
    // regSetInf.setData = setInf->setData;
    ret = sendCommand(SPIhandler, OPCODE_WREG, lpgetInf, lpadcData);
    rsp = lpadcData->response;
-   
+
    printf("write Reg. addr - 0x%x, data - 0x%x, rsp - 0x%x\n", setInf->regAddr, setInf->setData, rsp);
    return rsp;
 }
 
 /*************************************************
  * ads131m04 event function.
- * 
+ *
  * ***********************************************
- * 
+ *
  * */
-regInfor regSetInf; //TODO - move to the definition part of this file.
+regInfor regSetInf; // TODO - move to the definition part of this file.
 
-void adcCaptureFun(int gpio, int level, uint32_t tick, userData* padcCapFuncData) //a callback function for capture adc data.
+void adcCaptureFun(int gpio, int level, uint32_t tick, userData *padcCapFuncData) // a callback function for capture adc data.
 {
-   int reps, h, isRn, idx;
+   int reps, h, isRn, idx, dataPtr, dataIn, dataOut, numData;
    uint32_t lpreTick;
-   regInfor *pregInf = &regSetInf;  //TODO - move into uaserData
-   
-   pthread_mutex_lock(&pmtx_funcData);
+   regInfor *pregInf = &regSetInf; // TODO - move into uaserData
+
+   pthread_mutex_lock(&pmtx_funcData); //TODO - do not need?!
+   isRn = padcCapFuncData->isRun; // TODO - check it need
+#if 0 //move in if() statement
    lpreTick = padcCapFuncData->preTick;
    h = padcCapFuncData->handle;
-   isRn = padcCapFuncData->isRun;
    idx = (padcCapFuncData->datIdx);
 
-   if((level == 0) && (isRn == 1) && (tick > (lpreTick + SAMPRAT)))
+   if(idx < FILTER_LEN)
    {
-         pregInf->regAddr = 1;
-         pregInf->numRegs = 0; //numRegs;
-         reps = tspi_ads131m04_rd(h, pregInf);
-#if 0         
-         double step = 1200000.0 / 8388607.0;
-         double v1, v2, v3, v4;
+      if(idx <= 0) //less than 0 is not reasonable but in case to correct it...
+      {
+         numData = 1;
+         avgFlt.updatePtr = 0;
+         for(int n = 0; n < FILTER_LEN; n++)
+         {
+            avgFlt.sum0 = avgFlt.chan0[n] = 0;
+            avgFlt.sum1 = avgFlt.chan1[n] = 0;
+            avgFlt.sum2 = avgFlt.chan2[n] = 0;
+            avgFlt.sum3 = avgFlt.chan3[n] = 0;
+         }
+      }else
+         numData = idx + 1;
+   }else
+      numData = FILTER_LEN;
+#endif
+   if ((level == 0) && (isRn == 1) /* && (tick > (lpreTick + SAMPRAT))*/)
+   {
+      lpreTick = padcCapFuncData->preTick;
+      h = padcCapFuncData->handle;
+      idx = (padcCapFuncData->datIdx);
 
-         if(adcData.channel0 > 0x7fffff)
+      if(idx < FILTER_LEN)
+      {
+         if(idx <= 0) //less than 0 is not reasonable but in case to correct it...
          {
-            v1 = (double)(~(adcData.channel0 | 0xff000000)+1);
-            v1 = -v1;
-         }
-         else
-         {
-            v1 = (double)adcData.channel0;
-         }
+            numData = 1;
+            avgFlt.updatePtr = 0;
+            for(int n = 0; n < FILTER_LEN; n++)
+            {
+               avgFlt.sum0 = avgFlt.chan0[n] = 0;
+               avgFlt.sum1 = avgFlt.chan1[n] = 0;
+               avgFlt.sum2 = avgFlt.chan2[n] = 0;
+               avgFlt.sum3 = avgFlt.chan3[n] = 0;
+            }
+         }else
+            numData = idx + 1;
+      }else
+         numData = FILTER_LEN;
 
-         if(adcData.channel1 > 0x7fffff)
-         {
-            v2 = (double)(~(adcData.channel1 | 0xff000000)+1);
-            v2 = -v2;
-         }
-         else
-         {
-            v2 = (double)adcData.channel1;
-         }
-         
-         if(adcData.channel2 > 0x7fffff)
-         {
-            v3 = (double)(~(adcData.channel2 | 0xff000000)+1);
-            v3 = -v3;
-         }
-         else
-         {
-            v3 = (double)adcData.channel2;
-         }
-         
-         if(adcData.channel3 > 0x7fffff)
-         {
-            v4 = (double)(~(adcData.channel3 | 0xff000000)+1);
-            v4 = -v4;
-         }
-         else
-         {
-            v4 = (double)adcData.channel3;
-         }
-#endif //TODO - remove above code
+      pregInf->regAddr = 1;
+      pregInf->numRegs = 0; // numRegs;
+      reps = tspi_ads131m04_rd(h, pregInf);
 
-         /* updata the adcCapFuncData */
-         idx = (idx + 1)%ADCLNTH;
-         padcCapFuncData->datIdx = idx;
-         padcCapFuncData->preTick = tick;
-         (padcCapFuncData->pRslts + idx)->tick = tick;
+      /* updata the adcCapFuncData */
+      padcCapFuncData->preTick = tick;
+      (padcCapFuncData->pRslts + idx)->tick = tick;
 
-#if 0
-         //v1 *= step;
-         //v2 *= step;
-         //v3 *= step;
-         //v4 *= step;
-         
-         //(padcCapFuncData->pRslts + idx)->results0 = v1;
-         //(padcCapFuncData->pRslts + idx)->results1 = v2;
-         //(padcCapFuncData->pRslts + idx)->results2 = v3;
-         //(padcCapFuncData->pRslts + idx)->results3 = v4;
-#endif //TODO - remove above code
+      dataPtr = avgFlt.updatePtr;
 
-         //TODO - convert to int type
-         int dataIn = adcData.channel0;
-         if(dataIn > 0x7fffff)
-         {
-            dataIn = (adcData.channel0 | 0xff000000);
-         }
-         (padcCapFuncData->pRslts + idx)->results0 = (float)dataIn;
-         
-         dataIn = adcData.channel1;
-         if(dataIn > 0x7fffff)
-         {
-            dataIn = (adcData.channel1 | 0xff000000);
-         }
-         (padcCapFuncData->pRslts + idx)->results1 = (float)dataIn;
-         
-         dataIn = adcData.channel2;
-         if(dataIn > 0x7fffff)
-         {
-            dataIn = (adcData.channel2 | 0xff000000);
-         }
-         (padcCapFuncData->pRslts + idx)->results2 = (float)dataIn;
-         
-         dataIn = adcData.channel3;
-         if(dataIn > 0x7fffff)
-         {
-            dataIn = (adcData.channel3 | 0xff000000);
-         }
-         (padcCapFuncData->pRslts + idx)->results3 = (float)dataIn;
+      // TODO - convert to int type
+      dataIn = adcData.channel0;
+      if (dataIn > 0x7fffff)
+      {
+         dataIn = (adcData.channel0 | 0xff000000);
+      }
+      (padcCapFuncData->pRslts + idx)->results0 = (float)dataIn;
+      dataOut = avgFlt.chan0[dataPtr];
+      avgFlt.chan0[dataPtr] = dataIn;
+      dataIn += avgFlt.sum0;
+      dataIn -= dataOut;
+      avgFlt.sum0 = dataIn;
+      padcCapFuncData->avgData[0] = dataIn/numData;
 
-         
-         //printf("Data(%d, %u): 0x%x, %.02f, %.02f, %.2f, %.2f\n", gpio, tick-lpreTick, adcData.response, v1, v2, v3, v4);
-         //printf("Data(%d, %u): %d\n", gpio, tick-lpreTick, adcData.response);
-               
+      //padcCapFuncData->avgData[0] = dataIn;//for debug
+
+      dataIn = adcData.channel1;
+      if (dataIn > 0x7fffff)
+      {
+         dataIn = (adcData.channel1 | 0xff000000);
+      }
+      (padcCapFuncData->pRslts + idx)->results1 = (float)dataIn;
+      dataOut = avgFlt.chan1[dataPtr];
+      avgFlt.chan1[dataPtr] = dataIn;
+      dataIn += avgFlt.sum1;
+      dataIn -= dataOut;
+      avgFlt.sum1 = dataIn;
+      padcCapFuncData->avgData[1] = dataIn/numData;
+
+      //padcCapFuncData->avgData[1] = dataIn;//for debug
+
+      dataIn = adcData.channel2;
+      if (dataIn > 0x7fffff)
+      {
+         dataIn = (adcData.channel2 | 0xff000000);
+      }
+      (padcCapFuncData->pRslts + idx)->results2 = (float)dataIn;
+      dataOut = avgFlt.chan2[dataPtr];
+      avgFlt.chan2[dataPtr] = dataIn;
+      dataIn += avgFlt.sum2;
+      dataIn -= dataOut;
+      avgFlt.sum2 = dataIn;
+      padcCapFuncData->avgData[2] = dataIn/numData;
+
+      //padcCapFuncData->avgData[2] = dataIn;//for debug
+
+      dataIn = adcData.channel3;
+      if (dataIn > 0x7fffff)
+      {
+         dataIn = (adcData.channel3 | 0xff000000);
+      }
+      (padcCapFuncData->pRslts + idx)->results3 = (float)dataIn;
+      dataOut = avgFlt.chan3[dataPtr];
+      avgFlt.chan3[dataPtr] = dataIn;
+      dataIn += avgFlt.sum3;
+      dataIn -= dataOut;
+      avgFlt.sum3 = dataIn;
+      padcCapFuncData->avgData[3] = dataIn/numData;
+
+      //padcCapFuncData->avgData[3] = dataIn;//for debug
+
+      avgFlt.updatePtr = (dataPtr + 1)%FILTER_LEN;
+      idx = (idx + 1) % ADCLNTH;
+      padcCapFuncData->datIdx = idx;
+
+      // printf("Data(%d, %u): 0x%x, %.02f, %.02f, %.2f, %.2f\n", gpio, tick-lpreTick, adcData.response, v1, v2, v3, v4);
+      // printf("Data(%d, %u): %d\n", gpio, tick-lpreTick, adcData.response);
    }
-   
    pthread_mutex_unlock(&pmtx_funcData);
-   //printf("Data(%d, %u): %d\n", gpio, tick-lpreTick, level);
+   // printf("Data(%d, %u): %d\n", gpio, tick-lpreTick, level);
    return;
 }
 
 /*************************************************
  * ads131m04 support routines.
- * 
+ *
  * **********************************************
- * 
+ *
  */
- int tspi_ads131m04_start(regInfor *pregInf, adc_channel_data *padcData) // start ads131m04, return SPI handle
+int tspi_ads131m04_start(regInfor *pregInf, adc_channel_data *padcData) // start ads131m04, return SPI handle
 {
    int h, vclk, vrst0, vrst1, vdrdy;
    uint16_t rep0, rep;
@@ -986,8 +1031,8 @@ void adcCaptureFun(int gpio, int level, uint32_t tick, userData* padcCapFuncData
    *
    */
 
-   // h = spiOpen(0, 1250000, 1); // open SPI decice "/dev/spidev0.0" with mode 1 for ads131m04
-   h = spiOpen(0, 2500000, 1); // open SPI decice "/dev/spidev0.0" with mode 1 for ads131m04
+   h = spiOpen(0, 4000000, 1); // open SPI decice "/dev/spidev0.0" with mode 1 for ads131m04
+   //h = spiOpen(0, 2500000, 1); // open SPI decice "/dev/spidev0.0" with mode 1 for ads131m04
    //CHECK(12, 1, h, 4, 100, "spiOpenADC");
    printf("ADC - %d\n", h);
 
@@ -1011,24 +1056,51 @@ void adcCaptureFun(int gpio, int level, uint32_t tick, userData* padcCapFuncData
    gpioWrite(ADC_SYNC_RST, 1); // set high to end the reset chip
    vrst1 = gpioRead(ADC_SYNC_RST);
 
-   //printf("\nads131 ctrl signals: enclk-%d, rst0-%d, rst1-%d, vdrdy-%d.\n", vclk, vrst0, vrst1, vdrdy);
+   // printf("\nads131 ctrl signals: enclk-%d, rst0-%d, rst1-%d, vdrdy-%d.\n", vclk, vrst0, vrst1, vdrdy);
 
    // write to Mode register(0x2) to enforce mode settings
-   pregInf->regAddr = 2;
-   pregInf->setData = 0x510;
+   pregInf->regAddr = MODE_ADDRESS; //2;
+   pregInf->setData = MODE_DEFAULT; //0x510;
    rep = sendCommand(h, OPCODE_WREG, pregInf, padcData);
 
-   // valiate first response word with (0xFF20 | CHANCNT)
-   // rep0 = (uint16_t)retrData(h, OPCODE_NULL, 2); //it's done in th esendCommand()???
-   rep0 = padcData->response; //adcData.response;
+   //valiate first response word with (0xFF20 | CHANCNT)
+   //rep0 = (uint16_t)retrData(h, OPCODE_NULL, 2); //it's done in th esendCommand()???
+   rep0 = padcData->response; // adcData.response;
    printf("start ads131m04 0x%x. \n", rep0);
    gpioDelay(500);
    
-   /* set alert callback function */
+   // write to clock register(0x3) to low power settings
+   pregInf->regAddr = CLOCK_ADDRESS; //3;
+   pregInf->setData = CLOCK_LOWPOWR; //0xF0D;
+   rep = sendCommand(h, OPCODE_WREG, pregInf, padcData);
+
+   // response word (mode settings)
+   rep0 = padcData->response; //adcData.response;
+   //printf("ads131m04 mode: 0x%x. \n", rep0);
+   gpioDelay(500);
+
+   // read to clock register(0x3) setting
+   pregInf->regAddr = CLOCK_ADDRESS;
+   pregInf->numRegs = 0;
+   rep = sendCommand(h, OPCODE_RREG, pregInf, padcData);
+   rep0 = padcData->response; //adcData.response;
+   //printf("ads131m04 clk-Reg: 0x%x, 0x%x.\n", rep0, rep);
+   gpioDelay(200);
+
+   // read to clock register(0x3) setting
+   pregInf->regAddr = CLOCK_ADDRESS;
+   pregInf->numRegs = 0;
+   rep = sendCommand(h, OPCODE_RREG, pregInf, padcData);
+
+   rep0 = padcData->response; //adcData.response;
+   printf("ads131m04 clk-Reg: 0x%x.\n", rep0);
+   gpioDelay(200);
+
+   /* set alert callback function TODO - remove it */
    //userData* pfuncData = &adcCapFuncData;
 
-   //pfuncData->handle = h; pfuncData->isRun = 0;
-   //gpioSetAlertFuncEx(ADC_DRDY, adcCaptureFun, pfuncData);
+   // pfuncData->handle = h; pfuncData->isRun = 0;
+   // gpioSetAlertFuncEx(ADC_DRDY, adcCaptureFun, pfuncData);
 
    return h; // pigpio set, spi opened and return api handle, h.
 }
@@ -1037,12 +1109,9 @@ int tspi_ads131m04_close(int SPIhandler) // close ads131m04, return SPI handle
 {
    int ext;
    ext = spiClose(SPIhandler);
-   //CHECK(12, 99, ext, 0, 0, "spiClose");
+   // CHECK(12, 99, ext, 0, 0, "spiClose");
 
    gpioWrite(ADC_CLKIN_EN, 0); // disable external clock 8.024MHz
 
    return ext;
 }
-
-
-

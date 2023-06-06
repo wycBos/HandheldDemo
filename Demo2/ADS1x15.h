@@ -49,7 +49,7 @@ it is retrived from lg_ads1x15 in lg ligrary.
 #define ADC_CLKIN_EN 21
 #define ADC_SYNC_RST 20
 #define ADC_DRDY 16
-#define ADCLNTH 32
+#define ADCLNTH 2048 //32
 
 // ADS131 SPI commands definitions
 #define OPCODE_NULL ((uint16_t)0x0000)
@@ -69,6 +69,7 @@ it is retrived from lg_ads1x15 in lg ligrary.
 #define MODE_DEFAULT ((uint16_t)0x0510)
 #define CLOCK_ADDRESS ((uint8_t)0x03)
 #define CLOCK_DEFAULT ((uint16_t)0x0F0E)
+#define CLOCK_LOWPOWR ((uint16_t)0x0F0D) // // for low power setting
 #define GAIN1_ADDRESS ((uint8_t)0x04)
 #define GAIN1_DEFAULT ((uint16_t)0x0000)
 #define GAIN2_ADDRESS ((uint8_t)0x05)
@@ -124,7 +125,8 @@ it is retrived from lg_ads1x15 in lg ligrary.
 
 #define NUM_REGISTERS ((uint8_t)64)
 
-#define SAMPRAT (1000000/210)
+#define SAMPRAT (1000000/200)
+#define FILTER_LEN 20
 
 /* original data types used for ADS1x115 */
 typedef struct ads1x15_s
@@ -199,6 +201,20 @@ typedef struct CPARatio_t
    caliRlt Rslt[30];
 }manuCst;
 
+typedef struct FILTER_t
+{
+   int updatePtr;
+   int sum0;
+   int sum1;
+   int sum2;
+   int sum3;
+   int chan0[FILTER_LEN];
+   int chan1[FILTER_LEN];
+   int chan2[FILTER_LEN];
+   int chan3[FILTER_LEN];
+}avgData;
+
+extern avgData avgFlt;
 extern adc_channel_data adcData; //TODO - move to .c file
 extern regInfor regSetInf; //TODO - move to AD_DAC.c file
 
@@ -210,16 +226,23 @@ typedef struct ADCRsults_t{
    double results3;
 }adcRslts;
 
+typedef struct capOneData_t{
+   bool isDataA;
+   int  datIdx;
+   adcRslts  *padcData;
+}oneCap;
+
 typedef struct UserData_t{// it's use in the file.
    int handle;
    int isRun;
    int datIdx;
+   int avgData[4];
    uint32_t preTick;
    adcRslts *pRslts;
 }userData;
 
-extern adcRslts adcRltData[ADCLNTH]; // TODO - move to .c file
-extern userData adcCapFuncData; // TODO - move to .c file
+extern adcRslts adcRltData[ADCLNTH];
+extern userData adcCapFuncData;
 extern pthread_mutex_t pmtx_funcData;
 
 /* functions supports ADS1115 AD Concerter */
@@ -258,7 +281,7 @@ ads1x15_p ADS1X15_close(ads1x15_p s);
 //void cbf(int e, lgGpioAlert_p evt, void *userdata);
 
 /* the functions of MCP4822 */
-void tspi_mcp4822(int channel, int command, double valu);
+void tspi_mcp4822(int channel, int command, double value, double prevalue);
 
 /* the functions of ADS131 */
 void adcCaptureFun(int gpio, int level, uint32_t tick, userData* padcCapFuncData);
