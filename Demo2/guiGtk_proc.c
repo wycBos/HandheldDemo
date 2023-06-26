@@ -7,8 +7,8 @@
  * *****************/
 
 #include <stdio.h>
-#include <wiringPi.h>
-#include <wiringSerial.h>
+//#include <wiringPi.h>
+//#include <wiringSerial.h>
 #include <pigpio.h>
 #include "waveForm.h"
 

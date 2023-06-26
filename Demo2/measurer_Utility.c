@@ -5,7 +5,7 @@
  * *****************************************/
 
 #include <stdio.h>
-#include <wiringPi.h>
+//#include <wiringPi.h>
 //#include <wiringSerial.h>
 #include <stdbool.h>
 #include "UART_test.h"
@@ -104,6 +104,7 @@ float UART_distMain(int isConti)
 
     // execute code shutdown;
     // printf("Execute %s.\n", command);
+    //gpioDelay(10000);
     reps = uart_cmdmsg(&muart, &cmdmsg, LASER_CTLSHT_CMD);
 
     uart_close(hd, &muart); // serialClose(hd);
@@ -181,35 +182,70 @@ int gasMeasClose() //for ADS131
  * 
  * *****************************************************/
 //int gasMeasJusted(float dac0Volt, float conMod)
-bool gasMeasJust(senCali dailyCal, senCali predailyCal)
+bool gasMeasJust(senCali *pdailyCal, senCali *ppredailyCal)
 {
    bool retFlag = false;
    float preVol, curVol, preRatio, curRatio;
 
-   preVol = curVol = dailyCal.dacCh0;
-   curRatio = dailyCal.avgRatio; preRatio = predailyCal.avgRatio; 
+   curVol = pdailyCal->dacCh0; preVol = ppredailyCal->dacCh0;
+   curRatio = pdailyCal->avgRatio; preRatio = ppredailyCal->avgRatio;
    if(fabs(preRatio - curRatio) > MAXRTIOD) //TODO - set ratio throuheld constant, MAXRTIOD
    {
-      if(curRatio > preRatio)
+      printf("    In adjust: cur- %.3f %.3f, pre- %.3f %.3f.\n\r", curRatio, curVol, preRatio, preVol);
+      if(preRatio > curRatio) /* decreasing */
       {
-         predailyCal.avgRatio = curRatio; //preVol = curVol;
-         dailyCal.dacCh0 = curVol = preVol + ADJSTEP; // TODO - adjust step constant, ADJSTEP
+         if(curVol > preVol)
+         {
+            curVol -= ADJSTEP;
+         }
+         else if(curVol < preVol)
+         {
+            curVol +=ADJSTEP;
+         }
+         else /* first adjust */
+         {
+            curVol -= ADJSTEP;
+         }
+      }
+      else if(preRatio < curRatio) /* increasing */
+      {
+         if(curVol > preVol)
+         {
+            curVol += ADJSTEP;
+         }
+         else if(curVol < preVol)
+         {
+            curVol -=ADJSTEP;
+         }
+         else /* first adjust */
+         {
+            curVol += ADJSTEP;
+         }
+
+      }
+      else /* naver catch here */
+      {
+         printf("    daily adjust error!\n\r");
          //tspi_mcp4822(0, 2, curVol, preVol); // set DAC CH0 value;
       }
-      else{
-         // keep pre-ratio
-         dailyCal.dacCh0 = curVol = preVol - ADJSTEP;
-         //tspi_mcp4822(0, 2, curVol, preVol);
+      /* update calibration parameters: Ration & DA ch0 value */
+      ppredailyCal->dacCh0 = pdailyCal->dacCh0;; //preVol = last curVol;
+      pdailyCal->dacCh0 = curVol; //
+      ppredailyCal->avgRatio = curRatio;
+
+      /* set new DACh0 value */
+      if(curVol > 2.048 || curVol < 0.002) //value < 0 || value > 2.048
+      {
+         curVol = 0.8;
+         printf("   Manufactory Calibration Request!");
       }
+
       tspi_mcp4822(0, 2, curVol, preVol);
    }else
    {
       retFlag = true;
    }
-
-   predailyCal.dacCh0 = preVol; // TODO - it may not be used, but can be used for debugging
-   dailyCal.dacCh0 = curVol;
-   
+  
    return retFlag;
 }
 
@@ -358,7 +394,7 @@ int getSets(const char *filename, measData *pDataSet)
 	//lConMod = atoi(parm4);
 	lpmData->adcSets.conMod = atof(parm4);
 
-	printf("(i)temp-point: %.2f, DACH0: %.2f, ConMod: %.3f\n", lpmData->tecSets.tempPoint, lpmData->dacSets.voltCh0, lpmData->adcSets.conMod);
+	printf("(i)temp-point: %.2f, DACH0: %.4f, ConMod: %.4f\n", lpmData->tecSets.tempPoint, lpmData->dacSets.voltCh0, lpmData->adcSets.conMod);
    return fret;
 }
 
@@ -383,7 +419,7 @@ int saveSets(const char *filename, measData *pDataSet)
 
 	printf("    writing a file\n");
 
-	sprintf(lineData,"%d, %d, %.2f, %.2f, %.2f",
+	sprintf(lineData,"%d, %d, %.2f, %.4f, %.4f",
       23/*lpmData->year*/, lpmData->ydays, lpmData->tecSets.tempPoint, 
       lpmData->dacSets.voltCh0, lpmData->adcSets.conMod);
 
@@ -402,6 +438,7 @@ char *mtd415setDGain = "setDGain";
 char *mtd415setIGain = "setIGain";
 
 char *mtd415getTemperture = "getTempture";
+char *mtd415getErrors = "getErrors";
 char *mtd415getCurrent = "getCurrent";
 char *mtd41paraSave = "paraSave";
 
@@ -421,7 +458,7 @@ char *mtd41paraSave = "paraSave";
 const char *tempCtrll_py(int argc, char *argv1, char *argv2, char *argv3)
 {
    //char resultStr[32], *presultStr = &resultStr[0];
-#if 0
+#if 1
 	PyObject *pName, *pModule, *pDict, *pFunc, *pValue, *pmyresult, *args, *kwargs;
 	int i;
 	char resultStr[32], *presultStr = &resultStr[0];
@@ -478,18 +515,20 @@ const char *tempCtrll_py(int argc, char *argv1, char *argv2, char *argv3)
 	}
 	if(strcmp("null", argv3))
 	{
-		printf("the argv3 is not null. %s\n\r", argv3);
+		//printf("the argv3 is not null. %s\n\r", argv3);
 		//args = PyTuple_Pack(1,PyUnicode_DecodeFSDefault(argv3));
 	}
 	args = PyTuple_Pack(1,PyUnicode_DecodeFSDefault(argv3));
+   //printf("in the ctrl_py(0)\n");
 
-	if (PyCallable_Check(pFunc))
+   if (PyCallable_Check(pFunc))
 	{
-		if(strcmp("null", argv3))
+		//printf("in the ctrl_py(1)\n");
+      if(strcmp("null", argv3))
       {
          //printf("the argv3 is %s.\n\r", argv3);
-			pmyresult = PyObject_CallObject(pFunc, args/*NULL*/);
-
+         pmyresult = PyObject_CallObject(pFunc, args/*NULL*/);
+         //printf("after the call.\n\r");
       }
 		else
       {
@@ -544,12 +583,12 @@ const char *tempCtrll_py(int argc, char *argv1, char *argv2, char *argv3)
 	// Finish the Python Interpreter
 	Py_Finalize();
 
-	gpioWrite(SER_SEL, SLE_LDIS); // set low (borrow SLE_LDIS)
+	//gpioWrite(SER_SEL, SLE_LDIS); // set low (borrow SLE_LDIS)
 
 	return presultStr;
 #endif
    //return "no mtd415.\n";//presultStr;
-   delay(100);
+   gpioDelay(10000);//delay(100);
    return "23.0";
 }
 #if 0

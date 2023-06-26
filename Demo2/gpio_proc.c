@@ -4,7 +4,7 @@
  * *****************/
 
 #include <stdio.h>
-#include <wiringPi.h>
+//#include <wiringPi.h>
 //#include <wiringSerial.h>
 #include <pigpio.h>
 #include "waveForm.h"
@@ -835,7 +835,9 @@ int uart_close(int SERHandle, UARTport *pUart)
 	hd = SERHandle;
 
 	/* close a serial port with SERHandle */
+	//gpioDelay(10000);
 	ok = serClose(hd);
+	//gpioWrite(SER_SEL, SLE_TMPC); //TODO - close the channel
 
 	/* clear uart */
 	pUart->serHandle = -1;

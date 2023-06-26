@@ -15,7 +15,7 @@ it is retrived from lg_ads1x15 in lg ligrary.
 
 #include <stdio.h>
 #include <pthread.h>
-#include <wiringPi.h>
+//#include <wiringPi.h>
 //#include <wiringSerial.h>
 #include <stdbool.h>
 #include <pigpio.h>

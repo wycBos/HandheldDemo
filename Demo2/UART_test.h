@@ -11,8 +11,8 @@
 
 #include "ADS1x15.h"
 
-#define MAXRTIOD  (0.05)
-#define ADJSTEP   (0.02)
+#define MAXRTIOD  (0.003)
+#define ADJSTEP   (0.002)
 
 typedef struct SensorCalib_t
 {
@@ -82,7 +82,7 @@ float UART_distMain(int isConti);
 float getGasConcentr();
 int gasMeasStart();
 int gasMeasClose();
-bool gasMeasJust(senCali dailyCal, senCali predailyCal);
+bool gasMeasJust(senCali *pdailyCal, senCali *ppredailyCal);
 float getLSRatio(userData* pfuncData);
 
 int getSets(const char *filename, measData *pDataSet);
@@ -91,12 +91,14 @@ int saveSets(const char *filename, measData *pDataSet);
 /* mtd415 APIs TODO - if it's moved to HandMeasurer.h */
 extern char *mtd415;
 extern char *mtd415setTempPoint;
+extern char *mtd415getErrors;
 extern char *mtd415setCurrentlimt;
 extern char *mtd415setPGain;
 extern char *mtd415setDGain;
 extern char *mtd415setIGain;
 
 extern char *mtd415getTemperture;
+extern char *mtd415getErrors;
 extern char *mtd415getCurrent;
 extern char *mtd41paraSave;
 

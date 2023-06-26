@@ -588,9 +588,9 @@ void tspi_mcp4822(int channel, int command, double value, double prevalue) // SP
 
    /* latch data to DAC */
    gpioWrite(DAC_LDAC, 0);
-   gpioDelay(400);
+   gpioDelay(4000);
    gpioWrite(DAC_LDAC, 1);
-
+   printf(" --- latch MCP4822 Data.\n");
    e = spiClose(h);
    // CHECK(12, 3, e, 0, 0, "spiClose");
 }
