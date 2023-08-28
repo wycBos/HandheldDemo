@@ -13,7 +13,8 @@
 #include <time.h>
 #include <pigpio.h>
 #include <pthread.h>
-#include "ADS1x15.h"
+//#include "ADS1x15.h"
+#include "AD_DAC.h"
 
 float _GAIN[] =
     {6.144, 4.096, 2.048, 1.024, 0.512, 0.256, 0.256, 0.256};
@@ -338,7 +339,7 @@ float ADS1115_main(void)
 
    float ADvolt = 0;
 #if 1
-   if (1 /*|!gpio_initlized*/) // pigpio re-init
+   if (0 /*|!gpio_initlized*/) // pigpio re-init Note - do not need it.
    {
       // printf("init pre-. \n");
       if (gpioInitialise() < 0)
@@ -486,7 +487,7 @@ void tspi_mcp4822(int channel, int command, double value, double prevalue) // SP
    char byte0, byte1;
 
    /* set MCP4822 value */
-   if (value < 0 && value > 2.048)
+   if (value < 0 || value > 2.048)
       value = 1.0;
 
    /* prepare numbers for setting */
@@ -517,9 +518,9 @@ void tspi_mcp4822(int channel, int command, double value, double prevalue) // SP
       ctrlData |= MCP4822_ACT; // set DA activite
 
    /* set DAC value */
-   if (channel == 0) // DAC_A
+   if (channel == 1) // DAC_B
    {
-      printf("    MCP4822 CH_A steps. %d\n", numSteps);
+      printf("    MCP4822 CH_B steps. %d\n", numSteps);
 
       if(numSteps > StepsPre)
       {
@@ -1071,7 +1072,7 @@ int tspi_ads131m04_start(regInfor *pregInf, adc_channel_data *padcData) // start
    
    // write to clock register(0x3) to low power settings
    pregInf->regAddr = CLOCK_ADDRESS; //3;
-   pregInf->setData = CLOCK_LOWPOWR; //0xF0D;
+   pregInf->setData = CLOCK_LOWPOWR; //0xF11(0xF0D);
    rep = sendCommand(h, OPCODE_WREG, pregInf, padcData);
 
    // response word (mode settings)
@@ -1115,3 +1116,116 @@ int tspi_ads131m04_close(int SPIhandler) // close ads131m04, return SPI handle
 
    return ext;
 }
+
+/* MAX11612 Operations */
+#if 1
+int MAX11612Setup(MAX11612_p max612){
+	char data = max612->setupData;
+	char *pbuf = max612->pbufData;
+	
+	data = data | 0x80; // make REG bit 7 = 1 (setup byte)
+	*(pbuf) = data;
+	i2cWriteDevice(max612->i2ch, pbuf, 1);
+	return 0;
+}
+
+uint8_t MAX11612Config(MAX11612_p max612){
+	char data = max612->configData;
+	char *pbuf = max612->pbufData;
+
+	data = data & (~0x80); // make REG bit 7 = 0 (configuration byte)
+	*(pbuf) = data;
+	i2cWriteDevice(max612->i2ch, pbuf, 1);
+	return 0;
+}
+
+
+/* MAX11612 Initialization */
+int MAX11612Init(MAX11612_p max612, char numCh)
+{
+	int ret = -1;
+   char lch = numCh << 1;
+	MAX11612_p ldev = max612;
+	
+   //printf(" - numCh %d %d.\n", numCh, lch);
+   //printf(" - pre-max612 %d %d %d %d\n", max612->i2ch, ldev->i2ch, max612->setupData, max612->configData);
+	ldev->setupData = MAX11612SETUP;
+	ldev->configData = (MAX11612CONFIG & ~0x0e) | lch;
+   //printf(" - config %d %d %d", MAX11612CONFIG, ~0x0e, lch);
+   //printf(" - max612 in init %d %d %d\n", ldev->i2ch, ldev->setupData, ldev->configData);
+	
+	ret = MAX11612Setup(ldev);
+	if(ret != 0)
+	{
+		printf(" - MAX11612 setup failed.\n");
+		return ret;
+	}
+
+	ret = MAX11612Config(ldev);
+	if(ret != 0)
+	{
+		printf(" - MAX11612 setup failed.\n");
+	}
+
+	return ret;
+}
+
+/* the getMAX11612vals() */
+int getMAX11612vals(int i2cBus, char numCh, float *results)
+{
+	int ret = -1;
+   char lnumCh = numCh, maxbuf[4];
+	MAX11612_p max612;
+	float finput, *lslts = results;
+	
+	max612 = calloc(1, sizeof(MAX11612_t));
+	
+	if(max612 == NULL)
+		return ret;
+		
+	
+   max612->bus = i2cBus; // 1
+	max612->device = MAX11612_ADDR; //0x68
+	max612->pbufData = &maxbuf[0];
+	
+	ret = i2cOpen(i2cBus, MAX11612_ADDR, 0);
+	if(ret < 0)
+	{
+		free(max612);
+		printf(" - open I2C failed.\n");
+		return ret;
+	}
+	max612->i2ch = ret;
+	
+	/* initialize the i2c slave device, MAX11612 */
+	ret = MAX11612Init(max612, lnumCh); // set-up and configuration
+	//printf(" - max612 init %d %d %d.\n", max612->i2ch, max612->setupData, max612->configData);
+
+	if(ret != 0)
+	{
+		free(max612);
+		return ret;
+	}
+	
+	/* read the i2c slave device, MAX11612 conversions value */	
+	i2cReadDevice(max612->i2ch, max612->pbufData, 2); // 2 read one channel input, 2xN scan N channels input
+	
+	/* calculate the voltage */
+   //printf(" -- receiv buf 0x%x 0x%x 0x%x 0x%x\n", *(max612->pbufData), *(max612->pbufData + 1), *(max612->pbufData + 2));
+	int result = (int)(*(max612->pbufData));
+	result = (result&0xf) << 8; result += (int)(*(max612->pbufData + 1));
+	finput = (float)(result); finput = finput * 5.0/4095;
+	*lslts = finput;
+
+   if(max612 != NULL)
+   {
+      /* close the i2c bus */
+      i2cClose(max612->i2ch);
+      /* free max612 */
+   	free(max612);
+      max612 = NULL;
+   }
+
+	return ret;
+}
+#endif

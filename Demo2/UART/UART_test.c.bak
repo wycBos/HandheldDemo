@@ -1,6 +1,6 @@
 #include <stdio.h>
-//#include <wiringPi.h>
-//#include <wiringSerial.h>
+#include <wiringPi.h>
+#include <wiringSerial.h>
 #include <stdbool.h>
 #include "UART_test.h"
 
@@ -67,7 +67,7 @@ int main()
         if (counter > 5) GoGo = FALSE;
         if (serialDataAvail(fd) > 0)
         {
-            gpioDelay(50000);//delay(50);
+            delay(50);
             counter++;
             for(int i=0;i<11;i++)
             {
@@ -102,9 +102,13 @@ int main()
                 printf("Invalid Data!\n");
             }
         }
-        gpioDelay(20000);//delay(20);
+        delay(20);
     }
-
+//    serialPrintf(fd,laseroff);
+//    delay(100);
+//   serialPrintf(fd,shutdown);     
+//    delay(500);
+//    serialClose(fd);
     printf("Received q for Quit \n"); 
     return distance; //0;
 }

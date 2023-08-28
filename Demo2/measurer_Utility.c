@@ -10,7 +10,8 @@
 #include <stdbool.h>
 #include "UART_test.h"
 #include "piSerial.h"
-#include "ADS1x15.h"
+//#include "ADS1x15.h"
+#include "AD_DAC.h"
 
 #include <pigpio.h>
 
@@ -187,7 +188,8 @@ bool gasMeasJust(senCali *pdailyCal, senCali *ppredailyCal)
    bool retFlag = false;
    float preVol, curVol, preRatio, curRatio;
 
-   curVol = pdailyCal->dacCh0; preVol = ppredailyCal->dacCh0;
+   //curVol = pdailyCal->dacCh0; preVol = ppredailyCal->dacCh0;
+   curVol = pdailyCal->dacChDC; preVol = ppredailyCal->dacChDC;
    curRatio = pdailyCal->avgRatio; preRatio = ppredailyCal->avgRatio;
    if(fabs(preRatio - curRatio) > MAXRTIOD) //TODO - set ratio throuheld constant, MAXRTIOD
    {
@@ -229,8 +231,11 @@ bool gasMeasJust(senCali *pdailyCal, senCali *ppredailyCal)
          //tspi_mcp4822(0, 2, curVol, preVol); // set DAC CH0 value;
       }
       /* update calibration parameters: Ration & DA ch0 value */
-      ppredailyCal->dacCh0 = pdailyCal->dacCh0;; //preVol = last curVol;
-      pdailyCal->dacCh0 = curVol; //
+      //ppredailyCal->dacCh0 = pdailyCal->dacCh0;; //preVol = last curVol;
+      //pdailyCal->dacCh0 = curVol; //
+
+      ppredailyCal->dacChDC = pdailyCal->dacChDC;; //preVol = last curVol;
+      pdailyCal->dacChDC = curVol; //
       ppredailyCal->avgRatio = curRatio;
 
       /* set new DACh0 value */
@@ -240,7 +245,8 @@ bool gasMeasJust(senCali *pdailyCal, senCali *ppredailyCal)
          printf("   Manufactory Calibration Request!");
       }
 
-      tspi_mcp4822(0, 2, curVol, preVol);
+      //tspi_mcp4822(0, 2, curVol, preVol);
+      tspi_mcp4822(1, 2, curVol, preVol);
    }else
    {
       retFlag = true;
@@ -289,17 +295,17 @@ float getLSRatio(userData* pfuncData) //TODO - place userData by measThr.
          df1 = sqrt(df1);
          df2 = sqrt(df2);
 
-         if(df2 != 0.0)
+         if(df1 != 0.0)
          {
-            avgRatio = df2/df1;;
+            avgRatio = df2/df1;
 
-            //printf("     lasting %d max-dalt %d; result %.4f, %.4f and ratio %.4f\n\r", (curTick - preTick), maxDtick, df1, df2, df1/df2);
-            //printf("     result %.4f, %.4f and ratio %.4f\n\r", df1, df2, df1/df2);
+            //printf("     lasting %d max-dalt %d; result %.4f, %.4f and ratio %.4f\n\r", (curTick - preTick), maxDtick, df1, df2, df2/df1);
+            //printf("     result %.4f, %.4f and ratio %.4f\n\r", df1, df2, df2/df1);
          }
          else
          {
             avgRatio = 0;
-            printf("    dF2 is zero. %.4f, %.4f", df1, df2);
+            printf("    dF1 is zero. %.4f, %.4f\n", df1, df2);
          }
          //printf("    (%d): %.02f, %.02f, %.2f, %.2f\n\r", count, v1, v2, v3, v4);
       
@@ -347,7 +353,7 @@ int getSets(const char *filename, measData *pDataSet)
    int fret;
    char lineData[64], parm0[16], parm1[16], parm2[16], parm3[16], parm4[16];
    char *retC;
-	int lydays, ret, retI, outN;
+	int lydays, ret, retI, outN = 0;
 	//float ltempPoint, lDAch0, lConMod;
    measData *lpmData = pDataSet;
   
@@ -366,9 +372,10 @@ int getSets(const char *filename, measData *pDataSet)
 	printf("    %s, (%d), %s.\n", lineData, outN, retC);
 	outN++;
 
-	while(outN < 32){
+	while(outN < 126){
 		//retI = fscanf(fh, "%s %s %s", parm1, parm2, parm3);
 		retI = fscanf(fh, "%s %s %s %s %s", parm0, parm1, parm2, parm3, parm4);
+      //printf("Read line(%d): %s, %s, %s, %s, %s, %i\n", outN, parm0, parm1, parm2, parm3, parm4, retI);
 		outN++;
 
 		//printf("%s, (%d), %d.\n", parm1, outN, retI); // debug info
@@ -386,7 +393,8 @@ int getSets(const char *filename, measData *pDataSet)
 	lpmData->tecSets.tempPoint = atof(parm2);
 
 	//lDAch0 = atof(parm3);
-	lpmData->dacSets.voltCh0 = atof(parm3);
+	//lpmData->dacSets.voltCh0 = atof(parm3); //voltCh0 used for DAC_MD
+	lpmData->dacSets.voltCh1 = atof(parm3);  //voltCh1 used for DAC_DC
 
 	//lydays = atoi(parm1);// keep ydays record
 	lpmData->dailyJust = atoi(parm1);
@@ -394,7 +402,7 @@ int getSets(const char *filename, measData *pDataSet)
 	//lConMod = atoi(parm4);
 	lpmData->adcSets.conMod = atof(parm4);
 
-	printf("(i)temp-point: %.2f, DACH0: %.4f, ConMod: %.4f\n", lpmData->tecSets.tempPoint, lpmData->dacSets.voltCh0, lpmData->adcSets.conMod);
+	printf("(in)temp-point: %.2f, DACHDC: %.4f, ConMod: %.4f\n", lpmData->tecSets.tempPoint, lpmData->dacSets.voltCh1, lpmData->adcSets.conMod);
    return fret;
 }
 
@@ -421,7 +429,7 @@ int saveSets(const char *filename, measData *pDataSet)
 
 	sprintf(lineData,"%d, %d, %.2f, %.4f, %.4f",
       23/*lpmData->year*/, lpmData->ydays, lpmData->tecSets.tempPoint, 
-      lpmData->dacSets.voltCh0, lpmData->adcSets.conMod);
+      lpmData->dacSets.voltCh1, lpmData->adcSets.conMod);
 
    printf(lineData); printf("\n");
    fprintf(fh, "%s\n", lineData);
@@ -441,6 +449,7 @@ char *mtd415getTemperture = "getTempture";
 char *mtd415getErrors = "getErrors";
 char *mtd415getCurrent = "getCurrent";
 char *mtd41paraSave = "paraSave";
+char *mtd415SafeChk = "SafeBitsChk";
 
 /*******************************************************
  * It calls a python rouitne to set the temperature controller.
@@ -458,7 +467,7 @@ char *mtd41paraSave = "paraSave";
 const char *tempCtrll_py(int argc, char *argv1, char *argv2, char *argv3)
 {
    //char resultStr[32], *presultStr = &resultStr[0];
-#if 1
+#if 0
 	PyObject *pName, *pModule, *pDict, *pFunc, *pValue, *pmyresult, *args, *kwargs;
 	int i;
 	char resultStr[32], *presultStr = &resultStr[0];

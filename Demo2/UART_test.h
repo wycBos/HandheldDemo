@@ -9,14 +9,17 @@
 #ifndef MEASURUTLIT_H
 #define MEASURUTLIT_H
 
-#include "ADS1x15.h"
+//#include "ADS1x15.h"
+#include "AD_DAC.h"
 
 #define MAXRTIOD  (0.003)
 #define ADJSTEP   (0.002)
+#define SAMP_PPM  (15)
 
 typedef struct SensorCalib_t
 {
 	float dacCh0;
+	float dacChDC;
     float avgRatio;
 	//uint32_t u32tickDbg[32];
 	//int inumData[32];
@@ -101,6 +104,7 @@ extern char *mtd415getTemperture;
 extern char *mtd415getErrors;
 extern char *mtd415getCurrent;
 extern char *mtd41paraSave;
+extern char *mtd415SafeChk;
 
 const char *tempCtrll_py(int argc, char *argv1, char *argv2, char *argv3);
 

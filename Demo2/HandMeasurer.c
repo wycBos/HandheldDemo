@@ -26,9 +26,9 @@
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 
 // #include "gpioTest.h"
-#include "UART_test.h"
+// #include "UART_test.h"
 #include "waveForm.h"
-#include "ADS1x15.h"
+// #include "ADS1x15.h"
 #include <stdlib.h>
 #include <sys/types.h>
 #include <signal.h>
@@ -43,7 +43,7 @@
 #include <sys/mman.h>
 #include <stdio.h>
 #include <linux/limits.h>
-//#include <wiringPi.h>
+// #include <wiringPi.h>
 #include <pigpio.h>
 #include <pthread.h>
 #include <signal.h>
@@ -61,7 +61,7 @@
 #endif
 
 #include "piSerial.h"
-#include "ADS1x15.h"
+#include "AD_DAC.h"
 #include "UART_test.h"
 /* GPIOs for Buttons */
 #define LEFT_BUTTON 22	 // Input
@@ -163,7 +163,7 @@ enum mState
 const gchar *labelstring, *setup_buf;
 time_t current_time;
 struct tm *time_info;
-//gpointer *ptime_info = &time_info;
+// gpointer *ptime_info = &time_info;
 int current_min = -1;
 int current_sec = -1;
 int ppm = 0;
@@ -229,11 +229,11 @@ void on_destroy()
 
 void cleanup(int signo)
 {
-	//pullUpDnControl(LEFT_BUTTON, PUD_DOWN);
-	//pullUpDnControl(MIDDLE_BUTTON, PUD_DOWN);
-	//pullUpDnControl(RIGHT_BUTTON, PUD_DOWN);
-	
-	gpioSetPullUpDown(LEFT_BUTTON, PI_PUD_DOWN/*PI_PUD_UP*/);
+	// pullUpDnControl(LEFT_BUTTON, PUD_DOWN);
+	// pullUpDnControl(MIDDLE_BUTTON, PUD_DOWN);
+	// pullUpDnControl(RIGHT_BUTTON, PUD_DOWN);
+
+	gpioSetPullUpDown(LEFT_BUTTON, PI_PUD_DOWN /*PI_PUD_UP*/);
 	gpioSetPullUpDown(MIDDLE_BUTTON, PI_PUD_DOWN);
 	gpioSetPullUpDown(RIGHT_BUTTON, PI_PUD_DOWN);
 
@@ -377,7 +377,7 @@ void setup_filestructure()
 void left_button_pressed(int gpio, int level, uint32_t tick)
 {
 	// printf("left-isr %d gpio, %d level, %u\n", gpio, level, tick);
-	gpioDelay(600000);//delay(500);
+	gpioDelay(600000); // delay(500);
 	if (level != 0)
 		return;
 
@@ -410,10 +410,10 @@ void left_button_pressed(int gpio, int level, uint32_t tick)
 		labelstring = gtk_label_get_text(GTK_LABEL(status_label));
 		if (strcmp(labelstring, "Confirm Exit") == 0)
 		{
-			//if(mData.wid >= 0) // stop the waveforms.
+			// if(mData.wid >= 0) // stop the waveforms.
 			//{
 			//	wavePistop(mData.wid);
-			//}
+			// }
 
 			gtk_label_set_text(GTK_LABEL(status_label), (const gchar *)"Bye");
 			OpMode = Shutdown;
@@ -427,8 +427,11 @@ void left_button_pressed(int gpio, int level, uint32_t tick)
 		//}
 		gtk_widget_show(ppm_display_label);
 		gtk_widget_show(eventbox_ppm);
-		gtk_label_set_text(GTK_LABEL(left_label), (const gchar *)"");
-		gtk_label_set_text(GTK_LABEL(middle_label), (const gchar *)"");
+		//gtk_label_set_text(GTK_LABEL(left_label), (const gchar *)"");
+		//gtk_label_set_text(GTK_LABEL(middle_label), (const gchar *)"");
+		gtk_label_set_text(GTK_LABEL(left_label), (const gchar *)"IR Cam");
+		gtk_label_set_text(GTK_LABEL(middle_label), (const gchar *)"Snapshot");
+
 		gtk_label_set_text(GTK_LABEL(right_label), (const gchar *)"Quit");
 		gtk_label_set_text(GTK_LABEL(status_label), (const gchar *)"Survey PPM");
 
@@ -449,7 +452,7 @@ void left_button_pressed(int gpio, int level, uint32_t tick)
 void middle_button_pressed(int gpio, int level, uint32_t tick)
 {
 	// printf("middle-isr %d gpio, %d level, %u\n", gpio, level, tick);
-	gpioDelay(600000);//delay(500);
+	gpioDelay(600000); // delay(500);
 	if (level != 0)
 		return;
 
@@ -460,11 +463,12 @@ void middle_button_pressed(int gpio, int level, uint32_t tick)
 		// call startup sequence here
 		gtk_label_set_text(GTK_LABEL(status_label), (const gchar *)"Choose Mode");
 		gtk_label_set_text(GTK_LABEL(left_label), (const gchar *)"PPM/DIST");
-		gtk_label_set_text(GTK_LABEL(middle_label), (const gchar *)"Live Cam");
+		gtk_label_set_text(GTK_LABEL(middle_label), (const gchar *)"");
+		//gtk_label_set_text(GTK_LABEL(middle_label), (const gchar *)"Live Cam");
 		gtk_label_set_text(GTK_LABEL(right_label), (const gchar *)"Bar Graph");
 		// printf("middle-start\n");
 	}
-	else if (strcmp(labelstring, "Live Cam") == 0)
+	else if (strcmp(labelstring, "Live Cam") == 0) //change to PPM mode
 	{
 		gtk_widget_hide(ppm_display_label);
 		gtk_widget_hide(eventbox_ppm);
@@ -519,7 +523,7 @@ void middle_button_pressed(int gpio, int level, uint32_t tick)
 void right_button_pressed(int gpio, int level, uint32_t tick)
 {
 	// printf("right-isr %d gpio, %d level, %u\n", gpio, level, tick);
-	gpioDelay(600000);//delay(500);
+	gpioDelay(600000); // delay(500);
 	if (level != 0)
 		return;
 	labelstring = gtk_label_get_text(GTK_LABEL(right_label));
@@ -558,7 +562,7 @@ void right_button_pressed(int gpio, int level, uint32_t tick)
 		gtk_label_set_text(GTK_LABEL(right_label), (const gchar *)"Exit");
 		gtk_label_set_text(GTK_LABEL(status_label), (const gchar *)"Idle");
 		OpMode = Idle;
-		// printf("right-Quit\n");
+		printf("right-Quit\n");
 		// if(mData.wid >= 0)
 		//{
 		//	wavePistop(mData.wid);
@@ -600,11 +604,11 @@ gboolean update_meas(gpointer mData)
 	// g_mutex_lock(&mutex_1);
 	pthread_mutex_lock(&pmtx_mData);
 	/* update the GUI here: */
-	//gtk_button_set_label(button,"label");
-	//itoa((int)ppm, buffer, 10); //DONE ppm=>ydays
-	//itoa(lmData.ppm, buffer, 10);
-	//sprintf(buffer, "%d", lmData.ppm);
-	sprintf(buffer, "%.2f", lmData.gas_ppm);
+	// gtk_button_set_label(button,"label");
+	// itoa((int)ppm, buffer, 10); //DONE ppm=>ydays
+	// itoa(lmData.ppm, buffer, 10);
+	// sprintf(buffer, "%d", lmData.ppm);
+	sprintf(buffer, "\n\n\r%.2f", lmData.gas_ppm);
 	strcat(buffer, " PPM\n\r");
 	sprintf(buffer1, "%2.2f", lmData.dist);
 	strcat(buffer1, " M\n\r");
@@ -691,7 +695,7 @@ void *start_loop_thread(void *arg)
 	int lydays, ret;
 	float ltempPoint, lDAch0, lConMod;
 
-	//FILE *fh;
+	// FILE *fh;
 	int readin, fret; //, retI, outN = 0;
 
 	measData mloopData;
@@ -699,22 +703,23 @@ void *start_loop_thread(void *arg)
 	time_t mlcurrent_time;
 	struct tm *mltime_info;
 
-	char img_filename[32], buffer[5]; //for image name
+	char img_filename[32], buffer[5]; // for image name
 	int lcurrent_sec = -1, LSDisTiming = 10;
 	float dis = 0;
 
 	/* initialize mloopData */
 	// 1- get configuration data from a file
-#if 1 //for debugM1 - from inside of the while()
-	//TODO - call getSets(const char *filename, measData *pDataSet);
+#if 1 // for debugM1 - from inside of the while()
+	// TODO - call getSets(const char *filename, measData *pDataSet);
 	fret = getSets("./settingsDataNew.txt", &mloopData);
-	printf("temp-point: %.2f, DACH0: %.2f, Modulus: %.2f\n", mloopData.tecSets.tempPoint, mloopData.dacSets.voltCh0, mloopData.adcSets.conMod);
+	// printf("temp-point: %.2f, DACH0: %.2f, Modulus: %.2f\n", mloopData.tecSets.tempPoint, mloopData.dacSets.voltCh0, mloopData.adcSets.conMod);
+	printf("temp-point: %.2f, DACHMD: %.2f, DACHDC: %.2f, Modulus: %.2f\n", mloopData.tecSets.tempPoint, mloopData.dacSets.voltCh0, mloopData.dacSets.voltCh1, mloopData.adcSets.conMod);
 
 	/* get current date-time */
 
 	time(&mlcurrent_time);
 	mltime_info = localtime(&mlcurrent_time);
-		strftime(dateString, sizeof(dateString), "%D", mltime_info);
+	strftime(dateString, sizeof(dateString), "%D", mltime_info);
 
 	mloopData.ydays = mltime_info->tm_yday;
 
@@ -722,48 +727,66 @@ void *start_loop_thread(void *arg)
 	printf("Year:%d - Month:%d - Date:%d. \n\n", mltime_info->tm_year - 100, mltime_info->tm_mon + 1, mltime_info->tm_yday);
 
 	// 2- set tec/dac/adc/distance
-	/* turn Laser off & set DAC CH0 lowest */
-	gpioWrite(TEMP_ENAB, PI_HIGH);  // disable Tec with high
-	gpioWrite(LASER_DETECT_EN, PI_LOW);   // disable Gas Laser with low
-	tspi_mcp4822(0, 2, 0.001,-1.0); //first set to 0, -1.0 indecates no prevalue set
-	gpioDelay(400);
+	/* turn Laser off & set DAC CH0/1 lowest */
+	gpioWrite(TEMP_ENAB, PI_HIGH);		// disable Tec with high
+	gpioWrite(LASER_DETECT_EN, PI_LOW); // disable Gas Laser with low
+	tspi_mcp4822(1, 2, 0.001, -1.0);	// first set to DC (ch1), -1.0 indecates no pre set
+	gpioDelay(1000);					// gpioSleep(0, 1, 0);
+	tspi_mcp4822(0, 2, 0.4, -1.0);	    // second set to mod (ch0), 0.4 default setting
+	gpioDelay(2000);					// gpioSleep(0, 1, 0);
 
 	/* set Tec/DAC_CH0, TODO do it later, as well as set DAC_CH1 */
 	gpioWrite(TEMP_ENAB, PI_LOW);
 
 	// get temp-point and waiting temperature closer to it, less than 0.05
-#if 1 //comment for debug1 TODO -remove later
-	char *presult; float tecRet, tempPoint, voltCh0, conModulus;
+#if 1 // comment for debug1 TODO -remove later
+	char *presult;
+	float tecRet, tempPoint, voltCh0, voltCh1, conModulus;
 	tempPoint = mData.tecSets.tempPoint = mloopData.tecSets.tempPoint; // TODO - use ltempPoint
-	voltCh0 = mData.dacSets.voltCh0 = mloopData.dacSets.voltCh0; // TODO - use lDAch0
+	// voltCh0 = mData.dacSets.voltCh0 = mloopData.dacSets.voltCh0; // TODO - use lDAch0
+	voltCh1 = mData.dacSets.voltCh1 = mloopData.dacSets.voltCh1; // TODO - use lDAch0
 	conModulus = mData.adcSets.conMod = mloopData.adcSets.conMod;
-	printf("   settings - %.2f, %.2f, %.2f\n", tempPoint, voltCh0, conModulus);
+	printf("   settings - %.2f, %.2f, %.2f\n", tempPoint, voltCh1, conModulus);
 
+	/* check tec mask-bits */
 	{
-		//char argu3[32] = "get temp point";
-		//char *psetVal = "-1";
-		//presult = tempCtrll_py(3, mtd415, mtd415setTempPoint, psetVal);
+		char argu3[32] = "null";
+		presult = tempCtrll_py(3, mtd415, mtd415SafeChk, &argu3);
+		//tecRet = atof(presult);
+		printf("     SafetyMask-bits is %s.\n\n", presult);
+	}
+	if(strcmp("255", presult)) //if mask-bits is not 255, exit app.
+	{
+		printf(" ---- no Tec available in Test code. \n");
+		//exit(0);
+	}
+	/* get temp point */
+	{
+		char argu3[32] = "get temp point";
+		char *psetVal = "-1";
+		presult = tempCtrll_py(3, mtd415, mtd415setTempPoint, psetVal);
 		//tecRet = atof(presult);
 		//gpioDelay(2000);
 	}
-	printf(" tec-return: %.2f\n", tecRet);
-	//if(tecRet != tempPoint) = > re-set temp-point. -DOTO later
+	//printf(" tec-return TP: %.2f\n", tecRet);
+	// if(tecRet != tempPoint) = > re-set temp-point. -DOTO later
 	{
-		//char argu3[32] = {0}; // = "set temp point";
+		// char argu3[32] = {0}; // = "set temp point";
 		////char *psetVal = "20";
-		//sprintf(argu3, "%.4f", tempPoint);
-		//printf(" ----- TempP %s \n", argu3); //for debug
-		//presult = tempCtrll_py(3, mtd415, mtd415setTempPoint, &argu3[0]);
-		//tecRet = atof(presult);
-		//gpioDelay(2000);
+		// sprintf(argu3, "%.4f", tempPoint);
+		// printf(" ----- TempP %s \n", argu3); //for debug
+		// presult = tempCtrll_py(3, mtd415, mtd415setTempPoint, &argu3[0]);
+		// tecRet = atof(presult);
+		// gpioDelay(2000);
 	}
 
-	printf("     Temperature point is %s.\n\n", presult);/*presvelop-system */
-	gpioWrite(TEMP_ENAB, PI_LOW);  // enable Tec with low
+	printf("     Temperature point is %s.\n\n", presult); /*presvelop-system */
+	// gpioWrite(TEMP_ENAB, PI_LOW);  // enable Tec with low
 
 	/* waiting Tec-temperature is closer to temp-point, less than 0.05 */
-	int count = 0; float tempRet = 0;
-	//while(fabs(tecRet - tempRet) > 0.05 && count < 60)
+	int count = 0;
+	float tempRet = 0;
+	// while(fabs(tecRet - tempRet) > 0.05 && count < 60)
 	//{
 	//	char argu3[32] = "null";
 	//	//presult = "no temperature getting!";//tempCtrll_py(3, mtd415, mtd415getFunc, &argu3); //for no Tec debug
@@ -773,35 +796,36 @@ void *start_loop_thread(void *arg)
 	//	printf("     delta Temp is (%d) %.4f, %.4f, %.4f.\n\n", count, tecRet, tempRet, fabs(tecRet - tempRet));
 	//	gpioDelay(500);
 	//	count++;
-	//}
+	// }
 
-	int tecS;
+	int tecS, tecEb;
+	tecEb = gpioRead(TEMP_ENAB);
 	tecS = gpioRead(TEMP_STAT);
 
 	/* check tec-status */
-	while(tecS != 1 && count < 2)
+	while (tecS != 1 && count < 15)
 	{
-		gpioDelay(500000); //500ms
+		gpioDelay(500000); // 500ms
 		tecS = gpioRead(TEMP_STAT);
 		count++;
 	}
-	printf("     delta Temp is (%.4f) %d.\n\n", tecRet, tecS);
-       
-	if(count >= 2)
+	printf("     Tec state is (%.4f) %d %d.\n\n", tecRet, tecS, tecEb);
+
+	if (1 && count >= 15) // for debug
 	{
 		int errs = 0;
 		char argu3[32] = "null";
-		//presult = "no temperature getting!";//tempCtrll_py(3, mtd415, mtd415getFunc, &argu3); //for no Tec debug
+		// presult = "no temperature getting!";//tempCtrll_py(3, mtd415, mtd415getFunc, &argu3); //for no Tec debug
 		presult = tempCtrll_py(3, mtd415, mtd415getErrors, argu3);
-		//errs = atoi(presult);
-		//printf("     Temperature point is %s.\n\n", presult);
-		printf("     delta Temp is (%.4f, %d) %s %d.\n\n", tecRet, count, presult, tecS);
+		// errs = atoi(presult);
+		// printf("     Temperature point is %s.\n\n", presult);
+		printf("     Tec Error is (%.4f, %d) %s %d.\n\n", tecRet, count, presult, tecS);
 	}
 
 #endif // end of debug1
 
 	// 2- set daily calibration flag
-	if(mloopData.ydays > mloopData.dailyJust)
+	if (mloopData.ydays > mloopData.dailyJust)
 	{
 		/* set to daily  justment */
 		printf(" ydays - %d, %d", mloopData.ydays, mloopData.dailyJust);
@@ -813,7 +837,8 @@ void *start_loop_thread(void *arg)
 	mData.dailyJust = mloopData.dailyJust; // TODO - should set correctly!
 	mData.ydays = mloopData.ydays;
 	mData.tecSets.tempPoint = mloopData.tecSets.tempPoint;
-	mData.dacSets.voltCh0 = mloopData.dacSets.voltCh0;
+	// mData.dacSets.voltCh0 = mloopData.dacSets.voltCh0;
+	mData.dacSets.voltCh1 = mloopData.dacSets.voltCh1;
 	mData.adcSets.conMod = mloopData.adcSets.conMod;
 	pthread_mutex_unlock(&pmtx_mData);
 
@@ -828,7 +853,7 @@ void *start_loop_thread(void *arg)
 		if (time_info->tm_min != current_min)
 		{
 			gdk_threads_add_idle(update_time, time_info);
-			gpioDelay(10000);//delay(10);
+			gpioDelay(10000); // delay(10);
 			current_min = time_info->tm_min;
 		}
 		/* update LS distance. TODO - the distance has to be openned when in state of daily calibration */
@@ -836,16 +861,16 @@ void *start_loop_thread(void *arg)
 		{
 			lcurrent_sec = time_info->tm_sec;
 
-			//pthread_mutex_lock(&pmtx_mData); // nolonger used here
+			// pthread_mutex_lock(&pmtx_mData); // nolonger used here
 			dis = UART_distMain(LASERDST); // TODO - set uport selection. (muxer to distance laser)
 			//dis = 5.0;
-			gpioDelay(5000);//delay(5);
-			//pthread_mutex_unlock(&pmtx_mData);
-			//printf("no distance laser used for debug.\n");
+			gpioDelay(3500); // gpioDelay(2000);//delay(5);
+			// pthread_mutex_unlock(&pmtx_mData);
+			// printf("no distance laser used for debug.\n");
 
 			/* check current tec-temperature */
 			float tecRet;
-			if(0&&(runTemp++)%3)//remove get temperture every second
+			if (0 && (runTemp++) % 3) // remove get temperture every second
 			{
 				char *presult;
 				char *psetVal = "null"; //"25.01"; //
@@ -860,12 +885,13 @@ void *start_loop_thread(void *arg)
 			if (dis >= 0.0)
 				mData.dist = dis;
 			g_mutex_unlock(&pmtx_mData);
-			//g_mutex_lock(&mutex_1);
-			//g_mutex_unlock(&mutex_1);
+			// g_mutex_lock(&mutex_1);
+			// g_mutex_unlock(&mutex_1);
 
-			printf("  main dis&temp - %f, %f, %d, %d\n", dis, tecRet, lcurrent_sec, LSDisTiming);
+			// printf("  main dis&temp - %f, %f, %d, %d\n", dis, tecRet, lcurrent_sec, LSDisTiming);
 		}
-		
+
+		gpioDelay(5000);
 		g_mutex_lock(&pmtx_mode);
 		lMode = OpMode;
 		g_mutex_unlock(&pmtx_mode);
@@ -894,44 +920,40 @@ void *start_loop_thread(void *arg)
 
 			mloopData.startFlag = true;
 			pthread_mutex_lock(&pmtx_mData);
-			mData.startFlag = mloopData.startFlag;			
+			mData.startFlag = mloopData.startFlag;
 			pthread_mutex_unlock(&pmtx_mData);
 
 			/* set DAC_CH0 output */
-			//tspi_mcp4822(0, 2, voltCh0, 0.001); //set it in the gas-measuring thread
+			// tspi_mcp4822(0, 2, voltCh0, 0.001); //set it in the gas-measuring thread
 
-			if(mloopData.dailyJust < 0)//TODO - pause here for calibration???
+			if (mloopData.dailyJust < 0) // TODO - pause here for calibration???
 			{
-				gpioDelay(200000);//delay(1000);
+				gpioDelay(200000); // delay(1000);
 				pthread_mutex_lock(&pmtx_mData);
-				mloopData.dailyJust = mData.dailyJust;			
+				mloopData.dailyJust = mData.dailyJust;
 				pthread_mutex_unlock(&pmtx_mData);
-				printf(" ----- waiting for running %d.\n", mloopData.dailyJust);
+				printf(" ----- waiting for daily-adjust %d.\n", mloopData.dailyJust);
 				break;
-			}// end of the daily calibration
+			} // end of the daily calibration
 
-	/* debugging end of app */
-	//OpMode = Shutdown;
-	//delay(500);
-	//exit(0);
-	/* end of the debugging */
-	/* re-set DAC ch0 & conMod value */
-	pthread_mutex_lock(&pmtx_mData);
-	voltCh0 = mloopData.dacSets.voltCh0 = mData.dacSets.voltCh0;
-	conModulus = mloopData.adcSets.conMod = mData.adcSets.conMod;
-	pthread_mutex_unlock(&pmtx_mData);
-	printf(" ----- start system running %.4f %.4f.\n", voltCh0, conModulus);
+			/* debugging end of app */
+			// OpMode = Shutdown;
+			// delay(500);
+			// exit(0);
+			/* end of the debugging */
+			/* re-set DAC ch0 & conMod value */
+			pthread_mutex_lock(&pmtx_mData);
+			// voltCh0 = mloopData.dacSets.voltCh0 = mData.dacSets.voltCh0;
+			voltCh1 = mloopData.dacSets.voltCh1 = mData.dacSets.voltCh1;
+			conModulus = mloopData.adcSets.conMod = mData.adcSets.conMod;
+			pthread_mutex_unlock(&pmtx_mData);
+			// printf(" ----- start system running %.4f %.4f.\n", voltCh0, conModulus);
+			printf(" ----- start system running %.4f %.4f %.4f.\n", voltCh0, voltCh1, conModulus);
 
-			gpioDelay(100000);//delay(500);
-
-			/* turn on the gas laser and set the DAC_CH0 valtage */
-			//gpioWrite(LASER_DETECT_EN, PI_HIGH); // enaable gas laser, TODO move to the gas-thread
-
-			/* set DAC_CH0 output */
-			//tspi_mcp4822(0, 2, voltCh0, 0.001); // set DAC_CH0 output to voltCh0. TODO move to the gas-thread
+			gpioDelay(100000); // gpioDelay(5000);//delay(500);
 
 			OpMode = Idle;
-			//OpMode = Shutdown; //TODO - debug, remove later
+			// OpMode = Shutdown; //TODO - debug, remove later
 			gtk_widget_hide(splash_screen);
 			break;
 		case Setup:
@@ -941,7 +963,7 @@ void *start_loop_thread(void *arg)
 				// printf("set the setup timing to 100.\n");
 			}
 
-			gpioDelay(10000);//delay(1);
+			gpioDelay(10000); // delay(1);
 			break;
 
 		case Idle:
@@ -953,7 +975,7 @@ void *start_loop_thread(void *arg)
 			gtk_widget_hide(laser_off);
 			gtk_widget_show(gps_on);
 			gtk_widget_show(laser_on);
-			
+
 			if (status == 1)
 			{
 				/* Free the pipeline */
@@ -980,19 +1002,23 @@ void *start_loop_thread(void *arg)
 			}
 			break;
 
-		case PPM://TODO - it would do someting here.
+		case PPM: // TODO - it would do someting here.
 			if (LSDisTiming != 1)
 				LSDisTiming = 1;
-			gpioDelay(10000);//delay(10);
+			gpioDelay(10000); // delay(10);
 			// gdk_threads_add_idle(update_ppm, (measData *)ppm);
-			gdk_threads_add_idle(update_meas, (gpointer)&mData);//TODO
+			gdk_threads_add_idle(update_meas, (gpointer)&mData); // TODO
+			/* display the spot video while measuring gas */
+			/* TODO: if there is any gas warning, take spots pictures (10) and then stich them */
+			gpioDelay(1000);
+			gdk_threads_add_idle(live_stream, (int *)pipeline); // TODO
 			break;
 		case LiveCam:
-			gpioDelay(1000);//delay(1);
-			gdk_threads_add_idle(live_stream, (int *)pipeline);//TODO
+			gpioDelay(1000);									// delay(1);
+			gdk_threads_add_idle(live_stream, (int *)pipeline); // TODO
 			break;
 		case IRCam:
-			gpioDelay(100000);//delay(100);
+			gpioDelay(10000); // delay(100);
 			strcpy(img_filename, "./Images/Img_");
 			{
 				// char imgPath[64];
@@ -1032,6 +1058,7 @@ void *start_loop_thread(void *arg)
 					}
 				}
 				counter++;
+				gpioDelay(20000);
 			}
 			else
 			{
@@ -1045,7 +1072,7 @@ void *start_loop_thread(void *arg)
 			break;
 
 		case Shutdown:
-			gpioDelay(500000);//delay(500);
+			gpioDelay(500000); // delay(500);
 			exit(0);
 		}
 	}
@@ -1077,7 +1104,7 @@ void *dev_gasMeasure_thread(void *arg)
 	time_t ltm;
 	float randVal;
 	srand((unsigned)time(&ltm));
-	
+
 	measData *plmData = (measData *)arg;
 	userData *pcapFuncData = &adcCapFuncData; // TODO - it is first definition here?
 	bool runFlag = false, isOK;
@@ -1085,7 +1112,7 @@ void *dev_gasMeasure_thread(void *arg)
 	float rsltRatio;
 
 	const uint32_t LSRatioTiming = 100000; // 100ms
-	int timeCnt = 1, lcurrent_sec = -1, LSDisTiming = 10;
+	int timeCnt = 1, lcurrent_sec = -1, LSDisTiming = 10, max162ain = 0;
 	uint32_t curTick, preTick;
 
 	senCali dailyCal, predailyCal;
@@ -1093,11 +1120,14 @@ void *dev_gasMeasure_thread(void *arg)
 
 	thrDbg gasDbg;
 	int dbgIdx = 0, cntIn = 0, cntInV = 0, lIdx, numdataPre, numdataPos;
+	int lstNumData = 100;
+	float samples = 0, avgSmpls = 100, avgRtoSec = 0;
 
 	pcapFuncData->handle = -1; // no handle enable.
+	measState = measEmpty;	   // no started.
 	preTick = curTick = gpioTick();
 
-	mData.wid = wavePiset(); // TODO start when measState is measIdle.
+	mData.wid = wavePiset(); // not need TODO start when measState is measIdle.
 	printf("waveforms are generated,\n");
 
 	int runCont = 0, caliCout = 0, aviNum = 0;
@@ -1114,96 +1144,149 @@ void *dev_gasMeasure_thread(void *arg)
 		 *
 		 * */
 		/* update time once a minute */
-		//time(&current_time);
-		//time_info = localtime(&current_time);
+		// time(&current_time);
+		// time_info = localtime(&current_time);
 
 		uint32_t deltTick;
 		curTick = gpioTick();
-		//printf(" 0 ---- %d, %d, delt: %d\n", curTick, preTick, deltTick);//TODO - check it
+		// printf(" 0 ---- %d, %d, delt: %d\n", curTick, preTick, deltTick);//TODO - check it
 
 		if ((deltTick = abs(curTick - preTick)) >= LSRatioTiming) // update time TODO - change to update gas Concentration.
 		{
 			preTick = gpioTick();
-			//printf(" ---- %d, %d, delt: %d\n", curTick, preTick, deltTick);//TODO - check it
+			// printf(" ---- %d, %d, delt: %d\n", curTick, preTick, deltTick);//TODO - check it
 
 			if (measState == measReady || measState == measAdjst)
 			{
 				// calculate ADC intput ration, capturing adc is opened.
-				int avgAdc0, avgAdc1, avgAdc2, avgAdc3; //numdataPre, numdataPos, 
+				int avgAdc0, avgAdc1, avgAdc2, avgAdc3; // numdataPre, numdataPos,
 				pthread_mutex_lock(&pmtx_funcData);
 				numdataPre = pcapFuncData->datIdx;
 				pcapFuncData->isRun = 0;
-				avgAdc0 = pcapFuncData->avgData[0]; avgAdc1 = pcapFuncData->avgData[1];
-				avgAdc2 = pcapFuncData->avgData[2]; avgAdc3 = pcapFuncData->avgData[3];
+				avgAdc0 = pcapFuncData->avgData[0];
+				avgAdc1 = pcapFuncData->avgData[1];
+				avgAdc2 = pcapFuncData->avgData[2];
+				avgAdc3 = pcapFuncData->avgData[3];
 				rsltRatio = getLSRatio(pcapFuncData);
 				pcapFuncData->datIdx = 0;
 				pcapFuncData->isRun = 1;
 				pthread_mutex_unlock(&pmtx_funcData);
 
-				/* random value for test - TODO remove it later*/
-				randVal = (float)rand();
-				randVal = randVal/RAND_MAX;
-				randVal -= 0.5; randVal *= 0.01;
-				//printf("  the randome out %.4f.\n\r", randVal);
-
-				if(measState == measAdjst) /* daily adjust */
+				/* update the ratio each 100ms if the value is satisfied */
+				cntIn++; samples += (float)numdataPre;
+				//avgSmpls = avgSmpls + (float)numdataPre; avgSmpls /= 2;
+				if (numdataPre > 95 /*avgSmpls numdataPre*/)//for test
 				{
-					//TODO - test
-					dailyCal.avgRatio = rsltRatio;
-					printf("    (%d)daily cali in: cur- %.3f %.3f, pre- %.3f %.3f.\n\r", caliCout, dailyCal.avgRatio, dailyCal.dacCh0, predailyCal.avgRatio, predailyCal.dacCh0);
-					isOK = gasMeasJust(&dailyCal, &predailyCal);
-					printf("    daily cali out(%d): cur- %.3f %.3f, pre- %.3f %.3f.\n\r", isOK, dailyCal.avgRatio, dailyCal.dacCh0, predailyCal.avgRatio, predailyCal.dacCh0);
-					
-					if(isOK)
-					{
-						/* set new data & end the daily calibration */
-						pthread_mutex_lock(&pmtx_mData);
-						plmData->dailyJust = ldailyJust = plmData->ydays;
-						plmData->dacSets.voltCh0 = dailyCal.dacCh0;
-						plmData->adcSets.conMod = 15/dailyCal.avgRatio;
-						//ldailyJust = plmData->dailyJust = plmData->ydays; // DONE - it's set at the startup!
-						//plmData.ydays = mloopData.ydays;
-						pthread_mutex_unlock(&pmtx_mData);
-						
-						printf(" ------ get out from calib - %d", ldailyJust);
-						
-						/* save the new settings, DAC_CH0 and ConMuduls */
-						saveSets("./settingsDataNew.txt", plmData);// TODO
-					}
-					caliCout++;
-
-				}else{
-					pthread_mutex_lock(&pmtx_mData);
-					plmData->gas_ppm = rsltRatio; //TODO calculat gas-ppm value late. now it updates the screen
-					pthread_mutex_unlock(&pmtx_mData);
-				}
-
-				cntIn++;
-				if (numdataPre > 180)
-				{
+					avgRtoSec = (avgRtoSec < rsltRatio)? rsltRatio:avgRtoSec; //get maximum value
 					cntInV++;
+				}//else{
+				//	printf("miss a sample group - (%d, %.1f, %d, %d)\n", cntInV, avgSmpls, lstNumData, numdataPre);
+					//lstNumData = (lstNumData>numdataPre)?numdataPre:lstNumData;
+				//}
+				lstNumData = (lstNumData>numdataPre)?numdataPre:lstNumData;
+				//avgSmpls = (float)numdataPre;				
+				
+				/* random value for test - TODO remove it in final code */
+				//randVal = (float)rand();
+				//randVal = randVal / RAND_MAX;
+				//randVal -= 0.5;
+				//randVal *= 0.01;
+				// printf("  the randome out %.4f.\n\r", randVal);
+			}
+
+			timeCnt = (timeCnt + 1) % 11; // TODO for mornitoring system state, such as battery level...
+		}
+
+		/* 1 second section */
+		if(!timeCnt && cntInV)
+		{
+			float voltIn; int ret;
+			
+			/* capture monitoring system states, such as power level, etc */
+			ret = getMAX11612vals(1, max162ain, &voltIn); // 0 - system power; 1-gas-laser's current (I*10); 2-thermal-voltage.
+			// voltIn = (float)(max162ain);
+			/* TODO - warning the gas-laser current out of range */
+
+			/* convert volt to temperature in deg-c */
+			if (max162ain == 2) // convert to temperature
+			{
+				if (voltIn > 0)
+				{
+
+					double Tc, Tk, par1, par2;
+					par1 = 3950.0;
+					par2 = 298.15;
+					par2 = exp(-par1 / par2) * 10000; // const
+
+					Tk = par1 / log((7000 * 1.8 / voltIn - 7000) / par2);
+					Tc = Tk - 273.15;
+					voltIn = Tc;
+					// printf("\n --- Temperature: %.3f %.3f", Tk, Tc);
+				}
+				else
+				{
+					printf(" -- temp-volt is wrong: %.3f\n", voltIn);
 				}
 			}
-			timeCnt = (timeCnt + 1)%10; //TODO for mornitoring system state, such as battery level...
+
+			max162ain = (max162ain + 1) % 3;
+			
+			/* gas measuering or daily adjust */
+			/* obtain the average ratio & calulat PPM */
+			//avgRtoSec /= cntInV; //using the maximum one.
+
+			if (cntIn != cntInV)
+			{
+				printf("count value - (%d, %d, %.1f, %d, %.3f)\n", cntIn, cntInV, samples/cntIn, lstNumData, avgRtoSec);
+			}
+			cntIn = cntInV = 0; // TODO remove later. they are for debugging.
+			samples = 0; lstNumData = 100; timeCnt = 1;
+
+			if(measState == measReady)
+			{
+				// update sys-states and gas_ppm
+				pthread_mutex_lock(&pmtx_mData);
+				plmData->ADVoltag = voltIn; // TODO - it's not used now.
+				plmData->gas_ppm = avgRtoSec; // TODO calculat gas-ppm value late. now it updates the screen
+				//plmData->gas_ppm = avgRtoSec*plmData->adcSets.conMod;
+				pthread_mutex_unlock(&pmtx_mData);
+				avgRtoSec = 0;
+
+			}
+			else if(measState == measAdjst)
+			{
+				dailyCal.avgRatio = avgRtoSec; avgRtoSec = 0;
+				printf("    (%d)daily cali in: cur- %.3f %.3f, pre- %.3f %.3f.\n\r", caliCout, dailyCal.avgRatio, dailyCal.dacChDC, predailyCal.avgRatio, predailyCal.dacChDC);
+				isOK = gasMeasJust(&dailyCal, &predailyCal);
+				printf("    daily cali out(%d): cur- %.3f %.3f, pre- %.3f %.3f.\n\r", isOK, dailyCal.avgRatio, dailyCal.dacChDC, predailyCal.avgRatio, predailyCal.dacChDC);
+				
+				if (isOK)
+				{
+					/* set new data & end the daily calibration */
+					pthread_mutex_lock(&pmtx_mData);
+					plmData->dailyJust = ldailyJust = plmData->ydays;
+					// plmData->dacSets.voltCh0 = dailyCal.dacCh0;
+					plmData->dacSets.voltCh1 = dailyCal.dacChDC;
+					plmData->adcSets.conMod = SAMP_PPM / dailyCal.avgRatio;
+					// ldailyJust = plmData->dailyJust = plmData->ydays; // DONE - it's set at the startup!
+					// plmData.ydays = mloopData.ydays;
+					pthread_mutex_unlock(&pmtx_mData);
+					
+					printf(" ------ get out from calib - %d", ldailyJust);
+					
+					/* save the new settings, DAC_CH0 and ConMuduls */
+					saveSets("./settingsDataNew.txt", plmData); // TODO - measState would be changed, measEnter!?
+				}
+				caliCout++;
+			}
 		}
 
-		if(!timeCnt && measState == measReady) // update time TODO - change to update gas Concentration.
-		{
-			// update the measure data
-			float voltIn = ADS1115_main(); //TODO - it's not used now.
-			pthread_mutex_lock(&pmtx_mData);
-			plmData->ADVoltag = voltIn; //TODO - it's not used now.
-			pthread_mutex_unlock(&pmtx_mData);
-
-			printf("count value - %d, %d)\n", cntIn, cntInV);
-			cntIn = cntInV = 0; //TODO remove later. they are for debugging.
-		}
-		
+		//gpioDelay(5000);//TODO - test OpMode racing
 		g_mutex_lock(&pmtx_mode);
 		lMode = OpMode;
 		g_mutex_unlock(&pmtx_mode);
 
-		switch (lMode/*OpMode*/)
+		switch (lMode /*OpMode*/)
 		{
 			//{Splash = 0, Setup, Idle, BarGraph, PPM, LiveCam, IRCam, Shutdown}
 		case Splash: // map to idle_start.
@@ -1228,41 +1311,42 @@ void *dev_gasMeasure_thread(void *arg)
 			runFlag = plmData->startFlag;
 			ldailyJust = plmData->dailyJust;
 			pthread_mutex_unlock(&pmtx_mData);
-			//printf("%d, %d \n", runFlag, ldailyJust);
+			// printf("%d, %d \n", runFlag, ldailyJust);
 
-			if(!runFlag)
+			if (!runFlag)
 			{
-				gpioDelay(50000);//delay(50);
+				gpioDelay(50000); // delay(50);
 				pthread_mutex_lock(&pmtx_mData);
-				dailyCal.dacCh0 = predailyCal.dacCh0 = plmData->dacSets.voltCh0;
-				dailyCal.avgRatio = predailyCal.avgRatio = 15/plmData->adcSets.conMod; //assume constans value 
+				dailyCal.dacChDC = predailyCal.dacChDC = plmData->dacSets.voltCh1;
+				dailyCal.avgRatio = predailyCal.avgRatio = 8/plmData->adcSets.conMod; // assume constans value under sample ppm = 8
 				pthread_mutex_unlock(&pmtx_mData);
 				measState = measEnter;
 				break;
 			}
 
-			{/* start ADC if need */		
+			{								  /* start ADC if need */
 				if (pcapFuncData->handle < 0) // TODO - should do it in main loop
 				{
 					/* lowest gas-laser current */
-					tspi_mcp4822(0, 2, 0.001, -1.0);
+					tspi_mcp4822(0, 2, 0.4, -1.0);//set DAC_Ch0 to default stting
 					gpioDelay(1000);
 
-					gasMeasStart();			  // only set the ADC, no capture.
+					gasMeasStart(); // only set the ADC, no capture.
 				}
 
-				if(ldailyJust < 0) //daily justment - TODO move to gas measuremetn thread
+				if (ldailyJust < 0) // daily justment - TODO move to gas measuremetn thread
 				{
-					
-					if(measState != measAdjst)
+
+					if (measState != measAdjst)
 					{
 
 						/* turn gas laser on */
-						gpioWrite(LASER_DETECT_EN, PI_HIGH);   // enable Gas Laser with high
+						gpioWrite(LASER_DETECT_EN, PI_HIGH); // enable Gas Laser with high
 						gpioDelay(1000);
 
 						/* set gas laser current */
-						tspi_mcp4822(0, 2, dailyCal.dacCh0, 0.001);
+						// tspi_mcp4822(0, 2, dailyCal.dacCh0, 0.001);
+						tspi_mcp4822(1, 2, dailyCal.dacChDC, 0.001);
 						gpioDelay(1000);
 
 						/* start adc capture */
@@ -1273,55 +1357,62 @@ void *dev_gasMeasure_thread(void *arg)
 						pthread_mutex_unlock(&pmtx_funcData);
 
 						/* start daily adjustment, initialize the daily calibration parameters */
-						//dailyCal.dacCh0 = predailyCal.dacCh0 = plmData->dacSets.voltCh0;
-						//dailyCal.avgRatio = predailyCal.avgRatio = 15/plmData->adcSets.conMod; //assume constans value 
+						// dailyCal.dacChDC = predailyCal.dacChDC = plmData->dacSets.voltCh1;
+						// dailyCal.avgRatio = predailyCal.avgRatio = 15/plmData->adcSets.conMod; //assume constans value
 						measState = measAdjst;
-						LSDisTiming = 1; //TODO - transfer to main loop to inform it has to measure distance every second. it can be set based on the dalyJust flag setting in main thread loop.
+						LSDisTiming = 1; // TODO - transfer to main loop to inform it has to measure distance every second. it can be set based on the dalyJust flag setting in main thread loop.
 					}
-					//gpioDelay(50000);//delay(50);
-					//printf("  run adjustment.\n");
-					//break;
+					// gpioDelay(50000);//delay(50);
+					// printf("  run adjustment.\n");
+					// break;
 				}
 				else // in mormal running
 				{
 					/* start gas-laser if in measEnter state */
-					if(measState == measEnter){
-						gpioWrite(LASER_DETECT_EN, PI_HIGH);   // enable Gas Laser with high
+					if (measState == measEnter)
+					{
+						gpioWrite(LASER_DETECT_EN, PI_HIGH); // enable Gas Laser with high
 						gpioDelay(1000);
 
 						/* set gas laser current */
-						tspi_mcp4822(0, 2, dailyCal.dacCh0, 0.001);
+						// tspi_mcp4822(0, 2, dailyCal.dacCh0, 0.001);
+						tspi_mcp4822(1, 2, dailyCal.dacChDC, 0.001);
 						gpioDelay(1000);
 
 						/* TODO remove it. stop/start adc capture */
-						//pthread_mutex_lock(&pmtx_funcData);
-						//pcapFuncData->datIdx = 0;
-						//pcapFuncData->isRun = 0;//pcapFuncData->isRun = 1;
-						//gpioSetISRFuncEx(ADC_DRDY, 1, 10, NULL, pcapFuncData);//gpioSetISRFuncEx(ADC_DRDY, 1, 10, adcCaptureFun, pcapFuncData);
-						//pthread_mutex_unlock(&pmtx_funcData);
+						// pthread_mutex_lock(&pmtx_funcData);
+						// pcapFuncData->datIdx = 0;
+						// pcapFuncData->isRun = 0;//pcapFuncData->isRun = 1;
+						// gpioSetISRFuncEx(ADC_DRDY, 1, 10, NULL, pcapFuncData);//gpioSetISRFuncEx(ADC_DRDY, 1, 10, adcCaptureFun, pcapFuncData);
+						// pthread_mutex_unlock(&pmtx_funcData);
 						printf("\n StateID (Splash-%d), system in normal start. turn on Tec only.\n", OpMode);
-						printf(" --- DAC_CH0 is set to %.4f %.4f\n", dailyCal.dacCh0, predailyCal.dacCh0);
+						// printf(" --- DAC_CH0 is set to %.4f %.4f\n", dailyCal.dacCh0, predailyCal.dacCh0);
+						printf(" --- DAC_CH1 is set to %.4f %.4f\n", dailyCal.dacChDC, predailyCal.dacChDC);
 					}
 					/* start gas-laser after daily calibration */
-					else if(measState == measAdjst){
+					else if (measState == measAdjst)
+					{
 						/* close adc capture */
 						pthread_mutex_lock(&pmtx_funcData);
 						pcapFuncData->datIdx = 0;
-						pcapFuncData->isRun = 0;//pcapFuncData->isRun = 1;
-						gpioSetISRFuncEx(ADC_DRDY, 1, 10, NULL, pcapFuncData);//gpioSetISRFuncEx(ADC_DRDY, 1, 10, adcCaptureFun, pcapFuncData);
+						pcapFuncData->isRun = 0;							   // pcapFuncData->isRun = 1;
+						gpioSetISRFuncEx(ADC_DRDY, 1, 10, NULL, pcapFuncData); // gpioSetISRFuncEx(ADC_DRDY, 1, 10, adcCaptureFun, pcapFuncData);
 						pthread_mutex_unlock(&pmtx_funcData);
 						measState = measEnter;
 						printf("\n StateID (Splash-%d), daily calibration done.\n", OpMode);
-						printf(" --- Stop the ADCapture. DAC_CH0 is set to %.4f %.4f\n", dailyCal.dacCh0, predailyCal.dacCh0);
+						// printf(" --- Stop the ADCapture. DAC_CH0 is set to %.4f %.4f\n", dailyCal.dacCh0, predailyCal.dacCh0);
+						printf(" --- Stop the ADCapture. DAC_CH1 is set to %.4f %.4f\n", dailyCal.dacChDC, predailyCal.dacChDC);
 						gpioDelay(50000);
-					}else{
+					}
+					else
+					{
 						printf(" --- start run with error measState %d\n", measState);
 					}
 				}
 			}
-			//printf("\n (Splash-%d), daily calibration done - %d. Meas-state - %d.\n", OpMode, ldailyJust, measState);
+			// printf("\n (Splash-%d), daily calibration done - %d. Meas-state - %d.\n", OpMode, ldailyJust, measState);
 
-			gpioDelay(200000);//delay(1000);
+			gpioDelay(200000); // delay(1000);
 			break;
 		case Setup: // map to set_device. TODO - it is a new routine.
 			/**********************************************************
@@ -1347,12 +1438,14 @@ void *dev_gasMeasure_thread(void *arg)
 				gpioDelay(50000);
 
 				/* set DAC_CH0 */
-				float ldacCh0;
+				float ldacCh0, ldacCh1;
 				pthread_mutex_lock(&pmtx_mData);
-				ldacCh0 = plmData->dacSets.voltCh0;
+				// ldacCh0 = plmData->dacSets.voltCh0;
+				ldacCh1 = plmData->dacSets.voltCh1;
 				pthread_mutex_unlock(&pmtx_mData);
-				
-				tspi_mcp4822(0, 2, 0.001, ldacCh0); // set DAC_CH0 output to 0
+
+				// tspi_mcp4822(0, 2, 0.001, ldacCh0); // set DAC_CH0 output to 0
+				tspi_mcp4822(1, 2, 0.001, ldacCh1); // set DAC_CH1 output to 0
 				gpioDelay(1000);
 
 				/* turn laser off */
@@ -1363,14 +1456,20 @@ void *dev_gasMeasure_thread(void *arg)
 				/* stop distance measure, now in the main loop - move to the main loop */
 
 				measState = measSet;
+				runCont = 0;
 				printf("\n StateID (Setup-%d), set to measSet.\n", OpMode);
 				printf(" --- disable the gas-laser & ADC capture. Tec is on only. \n");
 			}
 
 			/* set isSetGas flag ture */
-			printf("\n StateID (Setup-%d), in setup.\n", OpMode);
-			printf(" --- Tec is on only.\n");
-			gpioDelay(200000);//delay(1000);
+			runCont++;
+			if (!runCont % 50)
+			{
+				printf("\n StateID (Setup-%d), in setup.\n", OpMode);
+				printf(" --- Tec is on only.\n");
+				runCont = 0;
+			}
+			gpioDelay(200000); // delay(1000);
 			break;
 
 		case Idle: // map to run_idle.
@@ -1387,6 +1486,7 @@ void *dev_gasMeasure_thread(void *arg)
 			 *
 			 */
 
+			gpioDelay(100000);
 			if (measState != measIdle)
 			{
 				if (measState == measSet)
@@ -1397,16 +1497,20 @@ void *dev_gasMeasure_thread(void *arg)
 					/* turn gas laser on */
 					gpioWrite(LASER_DETECT_EN, PI_HIGH); // enaable gas laser
 
-					/* set DAC_CH0 output */
-					float ldacCh0;
+					/* set DAC_CH0 or DAC_CH1 output */
+					float ldacCh0, ldacCh1;
 					pthread_mutex_lock(&pmtx_mData);
-					ldacCh0 = plmData->dacSets.voltCh0;
+					// ldacCh0 = plmData->dacSets.voltCh0;
+					ldacCh1 = plmData->dacSets.voltCh1;
 					pthread_mutex_unlock(&pmtx_mData);
 
-					tspi_mcp4822(0, 2, ldacCh0, 0.001); // set DAC_CH0 output
+					// tspi_mcp4822(0, 2, ldacCh0, 0.001); // set DAC_CH0 output
+					tspi_mcp4822(1, 2, ldacCh1, 0.001); // set DAC_CH1 output a working value
 					gpioDelay(1000);
-					printf(" --- enable gas laser & set DAC Ch0 %.f.\n", ldacCh0); //TODO the ldacCho is updated in measSet state.
-				}else if(measState == measReady)
+					// printf(" --- enable gas laser & set DAC Ch0 %.f.\n", ldacCh0); //TODO the ldacCh0 is updated in measSet state.
+					printf(" --- enable gas laser & set DAC Ch1 %.f.\n", ldacCh1); // TODO the ldacCh1 is updated in measSet state.
+				}
+				else if (measState == measReady)
 				{
 					/* stop gas LD ADC capture */
 					pthread_mutex_lock(&pmtx_funcData);
@@ -1414,7 +1518,7 @@ void *dev_gasMeasure_thread(void *arg)
 					pcapFuncData->isRun = 0;
 					gpioSetISRFuncEx(ADC_DRDY, 1, 10, NULL, pcapFuncData);
 					pthread_mutex_unlock(&pmtx_funcData);
-					printf(" --- disable ADC capture.\n"); //pre state is measReady.
+					printf(" --- disable ADC capture.\n"); // pre state is measReady.
 				}
 
 				printf("\n StateID (Idle-%d), start waveforms, set to measIdle. \n", OpMode);
@@ -1424,11 +1528,11 @@ void *dev_gasMeasure_thread(void *arg)
 
 				/* start distance measure once per 10sec, now in the main loop */
 				LSDisTiming = 10;
-
 			}
-			// printf("\n StateID (Idle-%d), start waveforms, set to measIdle. \n", OpMode);
+			// else
+			//	printf("\n StateID (Idle-%d), start waveforms, set to measIdle. \n", OpMode);
 
-			gpioDelay(100000);//delay(100);
+			//gpioDelay(100000); // delay(100);
 
 			break;
 
@@ -1444,6 +1548,7 @@ void *dev_gasMeasure_thread(void *arg)
 			 *
 			 */
 
+			gpioDelay(1000);
 			if (measState != measReady)
 			{
 				measState = measReady;
@@ -1461,38 +1566,42 @@ void *dev_gasMeasure_thread(void *arg)
 
 			// printf("\n StateID (PPM-%d), Turn on the Laser & run ADC input per 100ms, set to measReady. \n", OpMode);
 			// printf("  run distance measurement perSec.\n");
-			gpioDelay(100000);//delay(100);
+			
+			/* PPM should no delay for caputeing data TODO debug */
+			//gpioDelay(100000); // delay(100);
 			break;
 		case LiveCam: // map to img_capture, video display done in main loop
 			if (measState != measIdle)
 			{
 				printf("\n LiveCam with Err-measState %d, should be measIdle. \n", measState);
 			}
-			//printf("\n StateID (LiveCam-%d), display video, in measIdle. \n", OpMode);
-			gpioDelay(200000);//delay(100);
+			// printf("\n StateID (LiveCam-%d), display video, in measIdle. \n", OpMode);
+			gpioDelay(2000); // gpioDelay(200000);//delay(100);
 
 			// gdk_threads_add_idle(live_stream, (int *)pipeline);
 			break;
 		case IRCam: // map to img_capture. image capture done in main loop
-			if (measState != measIdle)
+			//if (measState != measIdle)
+			if (measState != measReady)
 			{
 				printf("\n IRCam with Err-measState %d, should be measIdle. \n", measState);
+				measState = measReady;
 			}
 			// printf("\n StateID (IRCam-%d), capture picture. in measIdle\n", OpMode);
-			gpioDelay(200000);//delay(100);
+			gpioDelay(2000); // gpioDelay(200000);//delay(100);
 			break;
 
 		case Shutdown: // map to idle_end
 			/* set DAC to 0 & close the function -Don't need, it's closed after setting. */
-			
+
 			/* close gas laser */
 			gpioWrite(LASER_DETECT_EN, PI_LOW);
 			/* close ADC */
 			gasMeasClose();
 			/* close Tec */
-			gpioWrite(TEMP_ENAB, PI_HIGH); //TODO - check later
+			// gpioWrite(TEMP_ENAB, PI_HIGH); //TODO - check later
 			/* stop the waveforms */
-			if(plmData->wid >= 0) // stop the waveforms.
+			if (plmData->wid >= 0) // stop the waveforms.
 			{
 				wavePistop(plmData->wid);
 				printf("waveforms are closed,\n");
@@ -1501,7 +1610,7 @@ void *dev_gasMeasure_thread(void *arg)
 			gpioTerminate();
 
 			printf("\n StateID (Shutdown-%d), close ADC, set DAC to 0, pigpio. \n", OpMode);
-			gpioDelay(500000);//delay(500);
+			gpioDelay(500000); // delay(500);
 			exit(0);
 		}
 	}
@@ -1511,9 +1620,9 @@ void *dev_gasMeasure_thread(void *arg)
 int main(int argc, char *argv[])
 {
 
-	//signal(SIGINT, cleanup);
-	//signal(SIGTERM, cleanup);
-	//signal(SIGHUP, cleanup);
+	// signal(SIGINT, cleanup);
+	// signal(SIGTERM, cleanup);
+	// signal(SIGHUP, cleanup);
 
 	/* Intialize the app's modules TODO later */
 	// gpio_init(); // pigpio initialization, TODO it is in gas measure thread.
@@ -1528,9 +1637,9 @@ int main(int argc, char *argv[])
 	if (gpioInitialise() < 0)
 		return 1;
 
-	//signal(SIGINT, cleanup);
-	//signal(SIGTERM, cleanup);
-	//signal(SIGHUP, cleanup);
+	// signal(SIGINT, cleanup);
+	// signal(SIGTERM, cleanup);
+	// signal(SIGHUP, cleanup);
 
 	/**** config GPIOs replaced by gpio_init() move to gas measure thread and btn_init() ****/
 	// GPIOs for button, routines are wrapped in gpio_proc.c.
@@ -1543,9 +1652,9 @@ int main(int argc, char *argv[])
 	gpioSetPullUpDown(MIDDLE_BUTTON, PI_PUD_UP);
 	gpioSetPullUpDown(RIGHT_BUTTON, PI_PUD_UP);
 
-	int leftset = gpioSetISRFunc(LEFT_BUTTON, FALLING_EDGE, 0/*60000*/, left_button_pressed);
-	int middleset = gpioSetISRFunc(MIDDLE_BUTTON, FALLING_EDGE, 0/*60000*/, middle_button_pressed);
-	int rightset = gpioSetISRFunc(RIGHT_BUTTON, FALLING_EDGE, 0/*60000*/, right_button_pressed);
+	int leftset = gpioSetISRFunc(LEFT_BUTTON, FALLING_EDGE, 0 /*60000*/, left_button_pressed);
+	int middleset = gpioSetISRFunc(MIDDLE_BUTTON, FALLING_EDGE, 0 /*60000*/, middle_button_pressed);
+	int rightset = gpioSetISRFunc(RIGHT_BUTTON, FALLING_EDGE, 0 /*60000*/, right_button_pressed);
 	printf(" set btn Func: %d, %d, %d\n", leftset, middleset, rightset); // TODO err handler
 
 	// GPIOs for UARTs, replace by gpio_init() & set_TempCtrl()
@@ -1617,7 +1726,7 @@ int main(int argc, char *argv[])
 
 	/* create GUI, replaced by init_gtk() */
 	// keep in here, some elements might to be modified. TODO.
-	builder = gtk_builder_new_from_file("gpioTest.glade");
+	builder = gtk_builder_new_from_file("gpioTestImg.glade");
 
 	window = GTK_WIDGET(gtk_builder_get_object(builder, "window"));
 
@@ -1694,7 +1803,8 @@ int main(int argc, char *argv[])
 	gtk_widget_show(laser_off);
 
 	/* set application default/start up state. TODO - check/modification */
-	OpMode = Splash; mData.startFlag = false;
+	OpMode = Splash;
+	mData.startFlag = false;
 	/* set the window position */
 	gint x, y;
 	x = 0;
@@ -1715,7 +1825,7 @@ int main(int argc, char *argv[])
 	pthread_t tidMainLoop, tidMeasure; // -TODO: =>tidMainLoop, tidMeasure, tidPosition for new code
 
 	// initialize thread mutex, pmtx_mode
-	
+
 	if (pthread_mutex_init(&pmtx_mode, NULL) != 0)
 	{
 		printf("\n pmtx_mode init has failed\n");
@@ -1741,9 +1851,9 @@ int main(int argc, char *argv[])
 	pthread_create(&tidMeasure, NULL, dev_gasMeasure_thread, &mData); // TODO - it will be dev_mainloop()
 
 	/* wait for threads (warning, they should never terminate) */
-	//pthread_join(tidMainLoop, NULL);
-	//pthread_join(tidMeasure, NULL);
-	//  setup_filestructure();
+	// pthread_join(tidMainLoop, NULL);
+	// pthread_join(tidMeasure, NULL);
+	//   setup_filestructure();
 
 	gtk_main();
 	pthread_mutex_destroy(&pmtx_mData);
